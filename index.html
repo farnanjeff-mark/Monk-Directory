@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monk Directory</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F4F5F2;--ink:#1B2430;--accent:#2D5A4A;--muted:#55606E;--border:#D5D9D3;--tint:#E6EFEB;--field:#9AA5A0;--faint:#6B7684;--err:#9B2C2C;--errbg:#FBEAEA}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
+button{font-family:inherit;cursor:pointer}
+.page{max-width:1200px;margin:0 auto;padding:24px 20px 40px;display:flex;flex-direction:column;gap:18px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.eyebrow{font-size:13px;font-weight:600;letter-spacing:.08em;color:var(--muted)}
+h1{margin:0;font-size:26px;line-height:1.15;font-weight:700}
+h2{margin:0;font-size:19px;font-weight:700}
+.today{font-size:15px;color:var(--muted);text-align:right}
+.linkbtn{background:none;border:0;padding:6px 0;color:var(--accent);font-size:15px;font-weight:600}
+.iconbtn{width:44px;height:44px;border-radius:12px;background:#fff;border:1px solid var(--border);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.head{display:flex;align-items:center;gap:12px}
+label{display:block;font-size:15px;font-weight:600;margin-bottom:6px}
+input,select{width:100%;height:52px;border:2px solid var(--field);border-radius:12px;padding:0 14px;font-size:18px;font-family:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-offset:1px}
+.searchrow{display:flex;gap:8px}
+.searchrow input{flex:1;min-width:0}
+.primary{height:54px;border:0;border-radius:14px;background:var(--accent);color:#fff;font-size:18px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 22px;width:100%}
+.primary[disabled]{opacity:.6;cursor:default}
+.secondary{height:54px;border:2px solid var(--field);border-radius:14px;background:#fff;color:var(--ink);font-size:18px;font-weight:600;width:100%}
+.sbtn{width:52px;height:52px;border:0;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px}
+.menu{display:grid;gap:10px}
+.menu button{display:flex;align-items:center;gap:14px;min-height:64px;padding:0 14px;text-align:left;background:#fff;border:1px solid var(--border);border-radius:14px;color:var(--ink)}
+.menu .ico{width:40px;height:40px;border-radius:10px;background:var(--tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.menu .t{font-size:18px;font-weight:600;line-height:1.2}
+.menu .s{font-size:14px;color:var(--muted)}
+.menu .chev{margin-left:auto;color:var(--muted)}
+.coming{padding:16px;display:flex;flex-direction:column;gap:12px}
+.coming .hd{display:flex;align-items:baseline;justify-content:space-between}
+.sub{font-size:14px;color:var(--muted)}
+.ev{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;padding:0;color:var(--ink)}
+.badge{width:48px;height:48px;border-radius:10px;background:var(--tint);color:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;flex:none}
+.badge span:first-child{font-size:11px;font-weight:600}
+.badge span:last-child{font-size:19px;font-weight:700}
+.ev .who{font-size:16px;font-weight:600}
+.ev .what{font-size:14px;color:var(--muted)}
+.ev .when{margin-left:auto;font-size:14px;font-weight:600;color:var(--accent);white-space:nowrap}
+.jub{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#F6E9C8;color:#6B4E00;font-size:12px;font-weight:700}
+.list{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:14px;min-height:68px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:14px;text-align:left;width:100%;color:var(--ink)}
+.row .nm{font-size:18px;font-weight:600;line-height:1.25}
+.row .meta{font-size:14px;color:var(--muted)}
+.row .chev{margin-left:auto;color:var(--muted);flex:none}
+.sug{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.count{font-size:15px;font-weight:600;color:var(--muted)}
+.hint{font-size:14px;color:var(--muted)}
+.chip{display:inline-block;padding:5px 12px;border-radius:999px;background:var(--tint);color:var(--accent);font-size:14px;font-weight:600}
+.facts{display:flex;flex-direction:column}
+.facts>div{padding:12px 16px;border-bottom:1px solid #E3E6E1}
+.facts>div:last-child{border-bottom:0}
+.facts .k{font-size:14px;color:var(--muted)}
+.facts .v{font-size:18px;font-weight:600}
+.facts .v.none{font-weight:400;color:var(--faint)}
+.facts .v small{font-weight:400;color:var(--muted);font-size:16px}
+form.f{display:flex;flex-direction:column;gap:14px}
+.two{display:flex;gap:10px}
+.banner{padding:12px 14px;border-radius:12px;font-size:16px}
+.banner.err{background:var(--errbg);color:var(--err);border:1px solid #E8B8B8}
+.banner.ok{background:var(--tint);color:var(--accent);border:1px solid #BCD3C9;font-weight:600}
+.center{padding:40px 10px;text-align:center;color:var(--muted)}
+.desk{display:none}
+.extra{display:none}
+.narrow{max-width:640px;width:100%}
+@media(min-width:900px){
+  .page{padding:32px 40px 56px;gap:24px}
+  .desk{display:block}
+  .home{display:flex;gap:32px;align-items:flex-start}
+  .home-left{flex:1.5;display:flex;flex-direction:column;gap:26px;min-width:0}
+  .home-right{flex:1;min-width:340px}
+  .menu{grid-template-columns:repeat(3,1fr)}
+  .menu button{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;padding:18px;min-height:140px}
+  .menu .chev{display:none}
+  .menu .t{font-size:21px}
+  .menu .s{font-size:15px}
+  .extra{display:flex}
+  h1.big{font-size:32px}
+  .coming{padding:22px}
+}
+@media(max-width:899px){h1.big{display:none}}
+</style>
+</head>
+<body>
+<div id="app"><div class="page"><div class="center">Loading the directory&hellip;</div></div></div>
+<script src="config.js"></script>
+<script>
+(function () {
+  'use strict';
+  var TITLES = ['Abbot', 'Archbishop', 'Fr.', 'Br.', 'Nov.', 'Post.'];
+  var STATUSES = ['Final Vows', 'Temporary Vows', 'Novice', 'Postulant'];
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var JUBILEES = [25, 50, 60, 70];
+
+  var state = { monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '' };
+  var memPass = '';
+  var app = document.getElementById('app');
+
+  /* ---------- tiny helpers ---------- */
+  function h(tag, attrs) {
+    var e = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) return;
+      if (k === 'class') e.className = v;
+      else if (k === 'value') e.value = v;
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : v);
+    });
+    for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+    return e;
+  }
+  function add(e, c) {
+    if (c === null || c === undefined || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(e, x); }); return; }
+    e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+  }
+  var ICONS = {
+    person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    back: '<path d="M15 6l-6 6 6 6"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+    cross: '<path d="M12 3v18M6 9h12"/>',
+    refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>'
+  };
+  function icon(name, size) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('width', size || 22); s.setAttribute('height', size || 22);
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none');
+    s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2');
+    s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+    s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = ICONS[name];
+    return s;
+  }
+
+  function norm(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+  function fullName(m) { return [m.title, m.monastic, m.last].filter(Boolean).join(' '); }
+  function shortName(m) { return [m.title, m.monastic].filter(Boolean).join(' '); }
+  function prep(m) {
+    m._hay = norm([m.title, m.monastic, m.last, m.legal, m.assign].join(' '));
+    return m;
+  }
+  function search(q, list) {
+    var words = norm(q).split(/\s+/).filter(Boolean);
+    if (!words.length) return list.slice();
+    return list.filter(function (m) {
+      return words.every(function (w) { return m._hay.indexOf(w) >= 0; });
+    });
+  }
+  function sortedMonks() {
+    return state.monks.slice().sort(function (a, b) {
+      return norm(a.monastic + ' ' + a.last).localeCompare(norm(b.monastic + ' ' + b.last));
+    });
+  }
+
+  /* ---------- dates ---------- */
+  function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function parts(iso) { var p = iso.split('-'); return { y: +p[0], m: +p[1], d: +p[2] }; }
+  function fmtDate(iso) { if (!iso) return ''; var p = parts(iso); return MON[p.m - 1] + ' ' + p.d + ', ' + p.y; }
+  function fmtMD(md) { if (!md) return ''; var p = md.split('-'); return MON[+p[0] - 1] + ' ' + (+p[1]); }
+  function yearsSince(iso) {
+    var p = parts(iso), t = today();
+    var y = t.getFullYear() - p.y;
+    if (t.getMonth() + 1 < p.m || (t.getMonth() + 1 === p.m && t.getDate() < p.d)) y--;
+    return y;
+  }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+  var KINDS = [
+    { f: 'dob', label: 'Birthday', kind: 1 },
+    { f: 'namesday', label: 'Namesday', kind: 2 },
+    { f: 'first', label: 'First profession anniversary', kind: 3 },
+    { f: 'solemn', label: 'Solemn profession anniversary', kind: 3 },
+    { f: 'ord', label: 'Ordination anniversary', kind: 3 }
+  ];
+  function upcoming() {
+    var t = today(), out = [];
+    state.monks.forEach(function (m) {
+      KINDS.forEach(function (k) {
+        var v = m[k.f];
+        if (!v) return;
+        var p = k.f === 'namesday' ? { y: 2000, m: +v.split('-')[0], d: +v.split('-')[1] } : parts(v);
+        var nxt = new Date(t.getFullYear(), p.m - 1, p.d);
+        if (nxt < t) nxt = new Date(t.getFullYear() + 1, p.m - 1, p.d);
+        var days = Math.round((nxt - t) / 86400000);
+        if (days > 30) return;
+        var yrs = nxt.getFullYear() - p.y;
+        var what;
+        if (k.kind === 1) what = 'Birthday, turns ' + yrs;
+        else if (k.kind === 2) what = 'Namesday';
+        else what = k.label + ', ' + plural(yrs, 'year');
+        out.push({ m: m, date: nxt, days: days, what: what, jubilee: k.kind === 3 && JUBILEES.indexOf(yrs) >= 0 ? yrs : 0 });
+      });
+    });
+    out.sort(function (a, b) { return a.days - b.days || norm(a.m.monastic).localeCompare(norm(b.m.monastic)); });
+    return out;
+  }
+  function whenText(d) { return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d + ' days'; }
+
+  /* ---------- server calls ---------- */
+  function getPass() { try { return localStorage.getItem('monkPass') || memPass; } catch (e) { return memPass; } }
+  function setPass(p) { memPass = p; try { localStorage.setItem('monkPass', p); } catch (e) {} }
+  function clearPass() { memPass = ''; try { localStorage.removeItem('monkPass'); } catch (e) {} }
+  function configured() {
+    var c = window.MONK_CONFIG;
+    return !!(c && c.API_URL && c.API_URL.indexOf('PASTE') < 0);
+  }
+  var NET_ERR = 'Could not reach the directory. Check your internet connection and try again.';
+  // Sends one request to the data service. Resolves with the parsed reply.
+  function api(action, data) {
+    var body = Object.assign({ action: action, pass: getPass() }, data || {});
+    return fetch(window.MONK_CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res && (res.code === 'auth')) { clearPass(); state.needPass = true; state.passMsg = res.error; }
+      return res;
+    });
+  }
+  function load(done) {
+    state.error = '';
+    if (!configured()) { render(); return; }
+    if (!getPass()) { state.needPass = true; state.loaded = false; render(); return; }
+    api('list').then(function (res) {
+      if (!res || !res.ok) {
+        state.loaded = false;
+        if (!state.needPass) state.error = (res && res.error) || 'Something went wrong. Please try again.';
+        render();
+        return;
+      }
+      state.needPass = false; state.passMsg = '';
+      state.monks = (res.monks || []).map(prep);
+      state.loaded = true;
+      if (done) done();
+      render();
+    }).catch(function () { state.error = NET_ERR; state.loaded = false; render(); });
+  }
+
+  /* ---------- navigation ---------- */
+  function cur() { return state.stack[state.stack.length - 1]; }
+  function go(v, extra) {
+    var s = { v: v }; if (extra) Object.keys(extra).forEach(function (k) { s[k] = extra[k]; });
+    state.stack.push(s); state.flash = ''; render(true);
+  }
+  function back() { if (state.stack.length > 1) state.stack.pop(); state.flash = ''; render(true); }
+  function home() { state.stack = [{ v: 'home' }]; state.flash = ''; render(true); }
+
+  /* ---------- shared pieces ---------- */
+  function header(title, eyebrow) {
+    return h('div', { class: 'head' },
+      h('button', { class: 'iconbtn', 'aria-label': 'Back', onclick: back }, icon('back')),
+      h('div', null, eyebrow ? h('div', { class: 'eyebrow' }, eyebrow) : null, h('h1', null, title)));
+  }
+  function searchBox(value, onGo, mode) {
+    var sug = h('div', { class: 'sug' });
+    var inp = h('input', { id: 'q', type: 'search', placeholder: 'Any part of a name', value: value || '', autocomplete: 'off', autocapitalize: 'none',
+      oninput: function () { if (mode === 'live') onGo(inp.value); else if (mode === 'suggest') showSug(); } });
+    function showSug() {
+      sug.innerHTML = '';
+      var q = inp.value;
+      if (!q.trim()) return;
+      var r = search(q, sortedMonks());
+      if (!r.length) { sug.appendChild(h('div', { class: 'sub' }, 'No match. Try fewer letters.')); return; }
+      r.slice(0, 6).forEach(function (m) { sug.appendChild(monkRow(m)); });
+      if (r.length > 6) sug.appendChild(h('button', { class: 'linkbtn', type: 'button', onclick: function () { onGo(inp.value); } }, 'See all ' + r.length + ' matches'));
+    }
+    var f = h('form', { class: 'searchform', onsubmit: function (e) { e.preventDefault(); onGo(inp.value); } },
+      h('label', { for: 'q' }, 'Find a monk'),
+      h('div', { class: 'searchrow' }, inp,
+        h('button', { class: 'sbtn', type: 'submit', 'aria-label': 'Search' }, icon('search'))),
+      mode === 'suggest' ? sug : null);
+    return f;
+  }
+  function monkRow(m, extra) {
+    return h('button', { class: 'row', onclick: function () { go('profile', { row: m.row }); } },
+      h('div', { style: 'min-width:0' }, h('div', { class: 'nm' }, fullName(m)),
+        h('div', { class: 'meta' }, [m.status, m.dob ? 'age ' + yearsSince(m.dob) : ''].filter(Boolean).join(', '))),
+      h('span', { class: 'chev' }, icon('chev', 20)));
+  }
+  function eventRow(ev) {
+    return h('button', { class: 'ev' + (ev._extra ? ' extra' : ''), onclick: function () { go('profile', { row: ev.m.row }); } },
+      h('div', { class: 'badge' }, h('span', null, MON[ev.date.getMonth()].toUpperCase()), h('span', null, ev.date.getDate())),
+      h('div', { style: 'min-width:0' },
+        h('div', { class: 'who' }, shortName(ev.m)),
+        h('div', { class: 'what' }, ev.what, ev.jubilee ? h('span', { class: 'jub' }, 'Jubilee') : null)),
+      h('div', { class: 'when' }, whenText(ev.days)));
+  }
+  function byRow(row) { for (var i = 0; i < state.monks.length; i++) if (state.monks[i].row === row) return state.monks[i]; return null; }
+
+  /* ---------- views ---------- */
+  function viewHome() {
+    var t = today();
+    var evs = upcoming();
+    var todays = evs.filter(function (e) { return e.days === 0; });
+    var shown = evs.slice(0, 6);
+    shown.forEach(function (e, i) { e._extra = i >= 4; });
+
+    var todayLine = 'Today, ' + MON[t.getMonth()] + ' ' + t.getDate() + (todays.length ? '' : ': nothing today');
+    var coming = h('div', { class: 'card coming' },
+      h('div', { class: 'hd' }, h('h2', null, 'Coming up'),
+        h('button', { class: 'linkbtn', onclick: function () { go('upcoming'); } }, 'See all')),
+      h('div', { class: 'sub' }, todayLine),
+      shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
+
+    var menu = h('div', { class: 'menu' },
+      menuItem('person', 'Monk Lookup', 'One monk’s full profile', function () { go('results', { q: '' , focus: true }); }),
+      menuItem('list', 'All Monks', 'Browse the full list', function () { go('all'); }),
+      menuItem('plus', 'Add a Monk', 'Enter a new record', function () { go('form', { row: null }); }));
+
+    return h('div', { class: 'home' },
+      h('div', { class: 'home-left' },
+        searchBox('', function (q) { go('results', { q: q }); }, 'suggest'),
+        menu),
+      h('div', { class: 'home-right' }, coming));
+  }
+  function menuItem(ic, t, s, fn) {
+    return h('button', { onclick: fn },
+      h('div', { class: 'ico' }, icon(ic)),
+      h('div', null, h('div', { class: 't' }, t), h('div', { class: 's' }, s)),
+      h('span', { class: 'chev' }, icon('chev', 20)));
+  }
+
+  function viewResults(s) {
+    var q = s.q || '';
+    var res = q.trim() ? search(q, sortedMonks()) : [];
+    var listEl = h('div', { class: 'list' });
+    var countEl = h('div', { class: 'count' });
+    function fill(query) {
+      listEl.innerHTML = ''; var r = query.trim() ? search(query, sortedMonks()) : [];
+      r.forEach(function (m) { listEl.appendChild(monkRow(m)); });
+      countEl.textContent = !query.trim() ? 'Type part of a name above.' : r.length === 0 ? 'No match. Try fewer letters.' : r.length + ' found';
+    }
+    var box = searchBox(q, function (qq) { s.q = qq; fill(qq); }, 'live');
+    fill(q);
+    var wrap = h('div', { class: 'narrow' }, header('Search results'), h('div', { style: 'height:16px' }), box,
+      h('div', { style: 'height:14px' }), countEl, h('div', { style: 'height:10px' }), listEl,
+      h('div', { style: 'height:14px' }), h('div', { class: 'hint' }, 'Typing more than one word narrows the list. Try “adam ryan”.'));
+    if (s.focus) setTimeout(function () { var i = document.getElementById('q'); if (i) i.focus(); }, 0);
+    return wrap;
+  }
+
+  function viewAll(s) {
+    var listEl = h('div', { class: 'list' });
+    var countEl = h('div', { class: 'count' });
+    function fill(q) {
+      listEl.innerHTML = '';
+      var r = search(q || '', sortedMonks());
+      r.forEach(function (m) { listEl.appendChild(monkRow(m)); });
+      countEl.textContent = r.length + (q && q.trim() ? ' found' : ' monks');
+    }
+    var inp = h('input', { id: 'qa', type: 'search', placeholder: 'Filter the list', autocomplete: 'off', oninput: function () { fill(inp.value); } });
+    fill('');
+    return h('div', { class: 'narrow' }, header('All Monks'), h('div', { style: 'height:16px' }),
+      h('label', { for: 'qa' }, 'Filter'), inp, h('div', { style: 'height:14px' }), countEl,
+      h('div', { style: 'height:10px' }), listEl);
+  }
+
+  function viewUpcoming() {
+    var evs = upcoming();
+    return h('div', { class: 'narrow' }, header('Coming up', 'NEXT 30 DAYS'), h('div', { style: 'height:16px' }),
+      h('div', { class: 'card coming' },
+        evs.length ? evs.map(function (e) { e._extra = false; return eventRow(e); }) : h('div', { class: 'sub' }, 'No special days in the next 30 days')),
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of profession or ordination.'));
+  }
+
+  function fact(k, v, extra) {
+    return h('div', null, h('div', { class: 'k' }, k),
+      v ? h('div', { class: 'v' }, v, extra ? h('small', null, ' (' + extra + ')') : null) : h('div', { class: 'v none' }, 'Not set'));
+  }
+  function viewProfile(s) {
+    var m = byRow(s.row);
+    if (!m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
+    return h('div', { class: 'narrow' }, header(fullName(m), 'MONK PROFILE'),
+      h('div', { style: 'height:12px' }),
+      state.flash ? h('div', { class: 'banner ok', role: 'status' }, state.flash) : null,
+      h('div', { style: 'height:6px' }),
+      h('div', null, m.status ? h('span', { class: 'chip' }, m.status) : null),
+      h('div', { style: 'height:16px' }),
+      h('button', { class: 'primary', onclick: function () { go('form', { row: m.row }); } }, icon('edit', 20), 'Edit this monk'),
+      h('div', { style: 'height:16px' }),
+      h('div', { class: 'card facts' },
+        fact('Legal (baptismal) name', m.legal),
+        fact('Age', m.dob ? String(yearsSince(m.dob)) : ''),
+        fact('Date of birth', fmtDate(m.dob)),
+        fact('Namesday', fmtMD(m.namesday)),
+        fact('First profession', fmtDate(m.first), m.first ? plural(yearsSince(m.first), 'year') : ''),
+        fact('Solemn profession', fmtDate(m.solemn), m.solemn ? plural(yearsSince(m.solemn), 'year') : ''),
+        fact('Ordination', fmtDate(m.ord), m.ord ? plural(yearsSince(m.ord), 'year') : ''),
+        fact('Current assignment', m.assign)));
+  }
+
+  function field(id, labelText, control) {
+    return h('div', null, h('label', { for: id }, labelText), control);
+  }
+  function selectEl(id, opts, value, blank) {
+    var s = h('select', { id: id });
+    if (blank !== undefined) s.appendChild(h('option', { value: '' }, blank));
+    opts.forEach(function (o) {
+      var val = typeof o === 'object' ? o.v : o, txt = typeof o === 'object' ? o.t : o;
+      s.appendChild(h('option', { value: val }, txt));
+    });
+    s.value = value || '';
+    return s;
+  }
+  function viewForm(s) {
+    var m = s.row ? byRow(s.row) : null;
+    var editing = !!m;
+    if (s.row && !m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
+    m = m || { title: '', monastic: '', last: '', legal: '', status: '', dob: '', namesday: '', first: '', solemn: '', ord: '', assign: '' };
+    var orig = editing ? { monastic: m.monastic, last: m.last } : null;
+    var nsM = m.namesday ? m.namesday.split('-')[0] : '', nsD = m.namesday ? String(+m.namesday.split('-')[1]) : '';
+    var days = []; for (var d = 1; d <= 31; d++) days.push(String(d));
+    var months = MONTHS_LONG.map(function (n, i) { var mm = ('0' + (i + 1)).slice(-2); return { v: mm, t: n }; });
+    var t = today();
+    var maxDob = t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2);
+
+    var fTitle = selectEl('f-title', TITLES, m.title, 'No title');
+    var fMon = h('input', { id: 'f-mon', type: 'text', value: m.monastic, autocomplete: 'off', maxlength: 80 });
+    var fLast = h('input', { id: 'f-last', type: 'text', value: m.last, autocomplete: 'off', maxlength: 80 });
+    var fLegal = h('input', { id: 'f-legal', type: 'text', value: m.legal, placeholder: 'Leave blank if unknown', autocomplete: 'off', maxlength: 120 });
+    var fStatus = selectEl('f-status', STATUSES, m.status, 'Choose a status');
+    var fDob = h('input', { id: 'f-dob', type: 'date', value: m.dob, min: '1700-01-01', max: maxDob });
+    var fNsM = selectEl('f-nsm', months, nsM, 'Month');
+    var fNsD = selectEl('f-nsd', days, nsD, 'Day');
+    var fFirst = h('input', { id: 'f-first', type: 'date', value: m.first, min: '1700-01-01', max: '2100-12-31' });
+    var fSolemn = h('input', { id: 'f-solemn', type: 'date', value: m.solemn, min: '1700-01-01', max: '2100-12-31' });
+    var fOrd = h('input', { id: 'f-ord', type: 'date', value: m.ord, min: '1700-01-01', max: '2100-12-31' });
+    var fAssign = h('input', { id: 'f-assign', type: 'text', value: m.assign, placeholder: 'Leave blank if none', autocomplete: 'off', maxlength: 200 });
+
+    var errBox = h('div', { class: 'banner err', role: 'alert', style: 'display:none' });
+    var saveBtn = h('button', { class: 'primary', type: 'submit' }, editing ? 'Save changes' : 'Add this monk');
+    function showErr(msg) { errBox.textContent = msg; errBox.style.display = msg ? 'block' : 'none'; if (msg) errBox.scrollIntoView({ block: 'center' }); }
+
+    var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
+      e.preventDefault();
+      showErr('');
+      if (!fMon.value.trim()) { showErr('Please enter the monastic name.'); fMon.focus(); return; }
+      if (!fLast.value.trim()) { showErr('Please enter the last name.'); fLast.focus(); return; }
+      if (!fStatus.value) { showErr('Please choose a status.'); fStatus.focus(); return; }
+      if ((fNsM.value && !fNsD.value) || (!fNsM.value && fNsD.value)) { showErr('For the namesday, choose both a month and a day, or leave both empty.'); return; }
+      var ns = fNsM.value ? fNsM.value + '-' + ('0' + fNsD.value).slice(-2) : '';
+      var payload = { title: fTitle.value, monastic: fMon.value, last: fLast.value, legal: fLegal.value, status: fStatus.value,
+        dob: fDob.value, namesday: ns, first: fFirst.value, solemn: fSolemn.value, ord: fOrd.value, assign: fAssign.value };
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      var resetBtn = function () { saveBtn.disabled = false; saveBtn.textContent = editing ? 'Save changes' : 'Add this monk'; };
+      api('save', { payload: payload, row: s.row || null, orig: orig }).then(function (res) {
+        if (res && res.code === 'auth') { state.loaded = false; render(); return; }
+        if (!res || !res.ok) { resetBtn(); showErr((res && res.error) || 'Could not save.'); return; }
+        state.monks = res.monks.map(prep);
+        state.stack.pop();
+        if (!editing) { state.stack = [{ v: 'home' }]; }
+        else { while (cur().v !== 'profile' && state.stack.length > 1) state.stack.pop(); }
+        state.stack.push({ v: 'profile', row: res.row });
+        state.flash = editing ? 'Saved.' : 'Added to the directory.';
+        render(true);
+      }).catch(function () { resetBtn(); showErr(NET_ERR); });
+    } },
+      errBox,
+      field('f-title', 'Title', fTitle),
+      field('f-mon', 'Monastic name', fMon),
+      field('f-last', 'Last name', fLast),
+      field('f-legal', 'Legal (baptismal) name', fLegal),
+      field('f-status', 'Status', fStatus),
+      field('f-dob', 'Date of birth', fDob),
+      h('div', null, h('label', { for: 'f-nsm' }, 'Namesday (month and day)'), h('div', { class: 'two' }, fNsM, fNsD)),
+      field('f-first', 'First profession', fFirst),
+      field('f-solemn', 'Solemn profession', fSolemn),
+      field('f-ord', 'Ordination', fOrd),
+      field('f-assign', 'Current assignment', fAssign),
+      h('div', { class: 'hint' }, 'Leave a date empty if it isn’t known. Age and years are worked out automatically.'),
+      h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:4px' },
+        saveBtn, h('button', { class: 'secondary', type: 'button', onclick: back }, 'Cancel')));
+
+    return h('div', { class: 'narrow' }, header(editing ? fullName(m) : 'Add a monk', editing ? 'EDIT MONK' : 'NEW RECORD'),
+      h('div', { style: 'height:16px' }), form);
+  }
+
+  function viewPass() {
+    var inp = h('input', { id: 'pc', type: 'password', autocomplete: 'current-password', autocapitalize: 'none', autocorrect: 'off' });
+    var msg = h('div', { class: 'banner err', role: 'alert', style: state.passMsg ? '' : 'display:none' }, state.passMsg);
+    return h('div', { class: 'narrow' },
+      h('form', { class: 'f', onsubmit: function (e) {
+        e.preventDefault();
+        var v = inp.value.trim();
+        if (!v) { msg.textContent = 'Please type the passcode.'; msg.style.display = 'block'; return; }
+        setPass(v); state.needPass = false; state.passMsg = ''; load();
+      } },
+        h('h1', null, 'Enter the passcode'),
+        h('div', { class: 'hint' }, 'You only need to do this once on this phone or computer.'),
+        msg,
+        h('div', null, h('label', { for: 'pc' }, 'Passcode'), inp),
+        h('button', { class: 'primary', type: 'submit' }, 'Open the directory')));
+  }
+
+  /* ---------- render ---------- */
+  function render(scrollTop) {
+    app.innerHTML = '';
+    var page = h('div', { class: 'page' });
+    var t = today();
+    var onHome = cur().v === 'home';
+    page.appendChild(h('div', { class: 'topbar' },
+      h('div', { class: 'brand' },
+        h('div', { class: 'logo' }, icon('cross')),
+        h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory'))),
+      h('div', { style: 'display:flex;align-items:center;gap:10px' },
+        h('div', { class: 'today desk' }, DAYS_LONG[t.getDay()] + ', ' + MONTHS_LONG[t.getMonth()] + ' ' + t.getDate() + ', ' + t.getFullYear()),
+        h('button', { class: 'iconbtn', 'aria-label': 'Refresh the list', title: 'Refresh', onclick: function () { load(function () { state.flash = ''; }); } }, icon('refresh', 20)))));
+
+    if (!configured()) {
+      page.appendChild(h('div', { class: 'banner err', role: 'alert' }, 'This page is not connected to the directory yet. The link in config.js still needs to be filled in.'));
+    } else if (state.needPass) {
+      page.appendChild(viewPass());
+    } else if (state.error) {
+      page.appendChild(h('div', { class: 'banner err', role: 'alert' }, state.error));
+      page.appendChild(h('button', { class: 'secondary', onclick: function () { load(); } }, 'Try again'));
+    } else if (!state.loaded) {
+      page.appendChild(h('div', { class: 'center' }, 'Loading the directory…'));
+    } else {
+      var s = cur(), body;
+      if (s.v === 'results') body = viewResults(s);
+      else if (s.v === 'all') body = viewAll(s);
+      else if (s.v === 'upcoming') body = viewUpcoming(s);
+      else if (s.v === 'profile') body = viewProfile(s);
+      else if (s.v === 'form') body = viewForm(s);
+      else body = viewHome();
+      page.appendChild(body);
+    }
+    app.appendChild(page);
+    if (scrollTop) window.scrollTo(0, 0);
+  }
+
+  window.__monkApp = { state: state, upcoming: upcoming, search: search };
+  render();
+  load();
+})();
+</script>
+</body>
+</html>
