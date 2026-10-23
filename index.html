@@ -241,7 +241,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
   function load(done) {
     state.error = '';
     if (!configured()) { render(); return; }
-    if (!getPass()) { state.needPass = true; state.loaded = false; render(); return; }
     api('list').then(function (res) {
       if (!res || !res.ok) {
         state.loaded = false;

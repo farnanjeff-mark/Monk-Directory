@@ -2,8 +2,12 @@
  * Monk Directory - data service (Google Apps Script, bound to the Sheet)
  *
  * The web page (hosted on GitHub Pages) talks to this script by its web app
- * link. Every request must include the passcode stored in this project's
- * Script Properties (key: PASSCODE). The passcode is NOT in this code.
+ * link.
+ *
+ * PASSCODE (optional): if a script property named PASSCODE exists in this
+ * project (Project Settings > Script properties), every request must include
+ * it. If the property does not exist, the directory is OPEN: anyone who has
+ * the web app link can read and change it. The passcode is never in this code.
  *
  * The script only ever writes columns A-K of the Master List tab
  * (L-P are formulas). It never deletes a row.
@@ -49,7 +53,7 @@ function doPost(e) {
 function checkSheet() {
   var n = readAll_().monks.length;
   var hasPass = !!PropertiesService.getScriptProperties().getProperty('PASSCODE');
-  Logger.log('Found ' + n + ' monks. Passcode set: ' + hasPass);
+  Logger.log('Found ' + n + ' monks. Passcode set: ' + hasPass + (hasPass ? '' : ' (open mode: anyone with the link can use the directory)'));
   return n;
 }
 
@@ -57,9 +61,7 @@ function checkSheet() {
 
 function checkPass_(given) {
   var want = PropertiesService.getScriptProperties().getProperty('PASSCODE');
-  if (!want) {
-    return { ok: false, code: 'setup', error: 'The passcode has not been set up yet. In the Apps Script project, open Project Settings and add a script property named PASSCODE.' };
-  }
+  if (!want) return null;   // no passcode set: open mode
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('fails') || 0);
   if (fails >= MAX_FAILS) {
