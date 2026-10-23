@@ -11,7 +11,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
 button{font-family:inherit;cursor:pointer}
-.page{max-width:1200px;margin:0 auto;padding:24px 20px 40px;display:flex;flex-direction:column;gap:18px}
+.page{max-width:560px;margin:0 auto;padding:24px 20px 40px;display:flex;flex-direction:column;gap:18px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:12px}
 .logo{width:44px;height:44px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
@@ -71,25 +71,9 @@ form.f{display:flex;flex-direction:column;gap:14px}
 .banner.err{background:var(--errbg);color:var(--err);border:1px solid #E8B8B8}
 .banner.ok{background:var(--tint);color:var(--accent);border:1px solid #BCD3C9;font-weight:600}
 .center{padding:40px 10px;text-align:center;color:var(--muted)}
-.desk{display:none}
 .extra{display:none}
-.narrow{max-width:640px;width:100%}
-@media(min-width:900px){
-  .page{padding:32px 40px 56px;gap:24px}
-  .desk{display:block}
-  .home{display:flex;gap:32px;align-items:flex-start}
-  .home-left{flex:1.5;display:flex;flex-direction:column;gap:26px;min-width:0}
-  .home-right{flex:1;min-width:340px}
-  .menu{grid-template-columns:repeat(3,1fr)}
-  .menu button{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;padding:18px;min-height:140px}
-  .menu .chev{display:none}
-  .menu .t{font-size:21px}
-  .menu .s{font-size:15px}
-  .extra{display:flex}
-  h1.big{font-size:32px}
-  .coming{padding:22px}
-}
-@media(max-width:899px){h1.big{display:none}}
+.narrow{width:100%}
+.home,.home-left{display:flex;flex-direction:column;gap:20px}
 </style>
 </head>
 <body>
@@ -524,7 +508,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
         h('div', { class: 'logo' }, icon('cross')),
         h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory'))),
       h('div', { style: 'display:flex;align-items:center;gap:10px' },
-        h('div', { class: 'today desk' }, DAYS_LONG[t.getDay()] + ', ' + MONTHS_LONG[t.getMonth()] + ' ' + t.getDate() + ', ' + t.getFullYear()),
         h('button', { class: 'iconbtn', 'aria-label': 'Refresh the list', title: 'Refresh', onclick: function () { load(function () { state.flash = ''; }); } }, icon('refresh', 20)))));
 
     if (!configured()) {
