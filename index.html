@@ -89,7 +89,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
   var DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var JUBILEES = [25, 50, 60, 70];
 
-  var state = { monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '' };
+  var state = { monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
   var memPass = '';
   var app = document.getElementById('app');
 
@@ -222,22 +222,38 @@ form.f{display:flex;flex-direction:column;gap:14px}
       return res;
     });
   }
-  function load(done) {
+  // The last list is kept on this device so the app can open instantly.
+  function strip(list) { return JSON.stringify(list, function (k, v) { return k === '_hay' ? undefined : v; }); }
+  function cacheGet() { try { var s = localStorage.getItem('monkCache'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function cachePut(list) { try { localStorage.setItem('monkCache', strip(list)); } catch (e) {} }
+  function cacheClear() { try { localStorage.removeItem('monkCache'); } catch (e) {} }
+  // quiet = refresh in the background: do not redraw a screen the person is using.
+  function load(done, quiet) {
     state.error = '';
     if (!configured()) { render(); return; }
     api('list').then(function (res) {
       if (!res || !res.ok) {
+        if (state.needPass) { cacheClear(); state.monks = []; state.loaded = false; render(); return; }
+        if (state.loaded) { state.notice = 'Could not refresh. Showing the last saved list.'; render(); return; }
         state.loaded = false;
-        if (!state.needPass) state.error = (res && res.error) || 'Something went wrong. Please try again.';
+        state.error = (res && res.error) || 'Something went wrong. Please try again.';
         render();
         return;
       }
-      state.needPass = false; state.passMsg = '';
-      state.monks = (res.monks || []).map(prep);
+      state.needPass = false; state.passMsg = ''; state.notice = '';
+      var fresh = (res.monks || []).map(prep);
+      var changed = strip(fresh) !== strip(state.monks);
+      var wasLoaded = state.loaded;
+      state.monks = fresh;
       state.loaded = true;
+      cachePut(fresh);
       if (done) done();
-      render();
-    }).catch(function () { state.error = NET_ERR; state.loaded = false; render(); });
+      var v = cur().v;
+      if (!quiet || !wasLoaded || (changed && (v === 'home' || v === 'upcoming'))) render();
+    }).catch(function () {
+      if (state.loaded) { state.notice = 'Could not refresh. Showing the last saved list.'; render(); return; }
+      state.error = NET_ERR; state.loaded = false; render();
+    });
   }
 
   /* ---------- navigation ---------- */
@@ -452,6 +468,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
         if (res && res.code === 'auth') { state.loaded = false; render(); return; }
         if (!res || !res.ok) { resetBtn(); showErr((res && res.error) || 'Could not save.'); return; }
         state.monks = res.monks.map(prep);
+        cachePut(state.monks);
         state.stack.pop();
         if (!editing) { state.stack = [{ v: 'home' }]; }
         else { while (cur().v !== 'profile' && state.stack.length > 1) state.stack.pop(); }
@@ -520,6 +537,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     } else if (!state.loaded) {
       page.appendChild(h('div', { class: 'center' }, 'Loading the directory…'));
     } else {
+      if (state.notice) page.appendChild(h('div', { class: 'banner err', role: 'status' }, state.notice));
       var s = cur(), body;
       if (s.v === 'results') body = viewResults(s);
       else if (s.v === 'all') body = viewAll(s);
@@ -534,8 +552,10 @@ form.f{display:flex;flex-direction:column;gap:14px}
   }
 
   window.__monkApp = { state: state, upcoming: upcoming, search: search };
+  var cached = configured() ? cacheGet() : null;
+  if (cached && cached.length) { state.monks = cached.map(prep); state.loaded = true; }
   render();
-  load();
+  load(null, true);
 })();
 </script>
 </body>
