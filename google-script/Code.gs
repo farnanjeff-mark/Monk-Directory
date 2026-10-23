@@ -9,8 +9,10 @@
  * it. If the property does not exist, the directory is OPEN: anyone who has
  * the web app link can read and change it. The passcode is never in this code.
  *
- * The script only ever writes columns A-K of the Master List tab
- * (L-P are formulas). It never deletes a row.
+ * The script writes columns A-K of the Master List tab (L-P are formulas) and
+ * never deletes a Master List row. It can also rewrite the three community tabs
+ * (Community Overview, Other Communities, Community Comparison), including
+ * removing rows there.
  */
 
 // Only used if the script is not bound to the Sheet (normally it is).
@@ -44,6 +46,7 @@ function doPost(e) {
     if (req.action === 'list') return json_({ ok: true, monks: readAll_().monks });
     if (req.action === 'save') return json_(saveMonk_(req.payload, req.row, req.orig));
     if (req.action === 'tab') return json_(readTab_(req.name));
+    if (req.action === 'saveTab') return json_(saveTab_(req.name, req.rows, req.base));
     return json_({ ok: false, error: 'Unknown request.' });
   } catch (err) {
     return json_({ ok: false, error: friendlyError_(err) });
@@ -89,9 +92,9 @@ function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/* ---------------- read-only community tabs ---------------- */
+/* ---------------- community tabs ---------------- */
 
-/** Only these tabs can be read this way. It never writes. */
+/** Only these tabs can be read or rewritten by the community screens. */
 var READABLE_TABS = ['Community Overview', 'Other Communities', 'Community Comparison'];
 
 function readTab_(name) {
@@ -107,6 +110,64 @@ function readTab_(name) {
     }
   }
   return { ok: true, name: name, rows: rows.slice(0, lastRow).map(function (row) { return row.slice(0, lastCol); }) };
+}
+
+/**
+ * Saves edited figures back to one of the three community tabs.
+ * rows: the whole tab as the person now sees it (first row = headings).
+ * base: the rows as they were when the person opened the tab (edit safety check).
+ * Only these three tabs can be written. The Master List is never touched here.
+ */
+function saveTab_(name, rows, base) {
+  if (READABLE_TABS.indexOf(name) < 0) return { ok: false, error: 'That page is not available.' };
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > 200) return { ok: false, error: 'Nothing to save, or too many rows.' };
+  var width = 0;
+  for (var i = 0; i < rows.length; i++) {
+    if (!Array.isArray(rows[i]) || rows[i].length > 20) return { ok: false, error: 'Bad data.' };
+    for (var j = 0; j < rows[i].length; j++) {
+      var cell = rows[i][j];
+      if (typeof cell === 'number') cell = String(cell);
+      if (typeof cell !== 'string') return { ok: false, error: 'Bad data.' };
+      if (cell.length > 600) return { ok: false, error: 'One of the entries is too long.' };
+      if (cell.charAt(0) === '=') return { ok: false, error: 'An entry cannot start with "=".' };
+      rows[i][j] = cell;
+    }
+    if (rows[i].length > width) width = rows[i].length;
+  }
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    return { ok: false, error: 'The directory is busy. Please try again in a moment.' };
+  }
+  try {
+    var sheet = getSS_().getSheetByName(name);
+    if (!sheet) return { ok: false, error: 'The "' + name + '" tab was not found.' };
+    var cur = readTab_(name);
+    if (JSON.stringify(cur.rows) !== JSON.stringify(base)) {
+      return { ok: false, code: 'changed', error: 'This page was changed by someone else. Please go back, reopen it and try again.' };
+    }
+    if (JSON.stringify(rows[0]) !== JSON.stringify(cur.rows[0])) {
+      return { ok: false, error: 'The heading row cannot be changed.' };
+    }
+    var out = rows.map(function (row) {
+      var r = [];
+      for (var c = 0; c < width; c++) {
+        var v = row[c] === undefined ? '' : row[c];
+        r.push(/^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v);
+      }
+      return r;
+    });
+    var oldRows = cur.rows.length, oldCols = cur.rows[0].length;
+    for (var k = 0; k < cur.rows.length; k++) if (cur.rows[k].length > oldCols) oldCols = cur.rows[k].length;
+    sheet.getRange(1, 1, out.length, width).setValues(out);
+    if (oldRows > out.length) sheet.getRange(out.length + 1, 1, oldRows - out.length, Math.max(oldCols, width)).clearContent();
+    if (oldCols > width) sheet.getRange(1, width + 1, Math.max(oldRows, out.length), oldCols - width).clearContent();
+    SpreadsheetApp.flush();
+    return readTab_(name);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ---------------- saving ---------------- */

@@ -51,6 +51,15 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .cm .grid .k{font-size:12px;color:var(--muted)}
 .cm .grid .v{font-size:16px;font-weight:600}
 .cm .note{font-size:13px;color:var(--muted)}
+.cm input,.cm textarea,.kv input{height:44px;font-size:16px;padding:0 10px;border-radius:10px;width:100%}
+.cm textarea{height:auto;min-height:72px;padding:8px 10px;border:2px solid var(--field);border-radius:10px;font:inherit;font-size:16px;width:100%;resize:vertical}
+.cm.ed .grid{grid-template-columns:repeat(2,1fr)}
+.cm.ed .full{grid-column:1/-1}
+.kv.ed{flex-direction:column;align-items:stretch;gap:8px}
+.rm{height:44px;border:1px solid #E8B8B8;border-radius:12px;background:#fff;color:var(--err);font-size:16px;font-weight:600;padding:0 14px;align-self:flex-start}
+.rm.armed{background:var(--errbg)}
+.btnrow{display:flex;gap:10px}
+.btnrow>*{flex:1}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #E3E6E1;font-size:17px}
 .kv:last-child{border-bottom:0}
 .kv b{font-weight:700}
@@ -303,10 +312,10 @@ form.f{display:flex;flex-direction:column;gap:14px}
         tabCachePut(name, res.rows);
         if (!changed) return;
       }
-      if (cur().v === 'tab' && cur().name === name) render();
+      if (cur().v === 'tab' && cur().name === name && !cur().edit) render();
     }).catch(function () {
       tabData[name] = Object.assign(tabData[name] || {}, { error: NET_ERR });
-      if (cur().v === 'tab' && cur().name === name) render();
+      if (cur().v === 'tab' && cur().name === name && !cur().edit) render();
     });
   }
 
@@ -411,6 +420,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     if (!d) { d = tabData[name] = tabCacheGet(name) ? { rows: tabCacheGet(name) } : null; }
     if (!s.asked) { s.asked = true; loadTab(name); }
     var box = h('div', { class: 'narrow' }, header(name, TABS[name].toUpperCase()), h('div', { style: 'height:16px' }));
+    if (state.flash) box.appendChild(h('div', { class: 'banner ok', role: 'status', style: 'margin-bottom:12px' }, state.flash));
     if (!d) { box.appendChild(h('div', { class: 'center' }, 'Loading…')); return box; }
     if (d.error && !d.rows) {
       box.appendChild(h('div', { class: 'banner err', role: 'alert' }, d.error));
@@ -419,9 +429,11 @@ form.f{display:flex;flex-direction:column;gap:14px}
       if (/not available|Unknown request/.test(d.error)) box.appendChild(h('div', { class: 'hint', style: 'margin-top:10px' }, 'The data service needs its update published first.'));
       return box;
     }
+    if (s.edit) return editTab(s, box, d);
     if (d.error) box.appendChild(h('div', { class: 'banner err', role: 'status', style: 'margin-bottom:12px' }, 'Could not refresh. Showing the last saved figures.'));
     var rows = d.rows || [];
     var foot = [];
+    box.appendChild(h('button', { class: 'secondary', style: 'margin-bottom:14px', onclick: function () { startEdit(s, d); } }, 'Edit these figures'));
     if (name === 'Community Overview') {
       var card = h('div', { class: 'card' });
       rows.slice(1).forEach(function (r) {
@@ -439,7 +451,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
         var noteIdx = head.indexOf('Notes'), note = noteIdx > 0 ? r[noteIdx] : '';
         var grid = h('div', { class: 'grid' });
         head.forEach(function (k, i) {
-          if (i === 0 || i === noteIdx || r[i] === '') return;
+          if (i === 0 || i === noteIdx || r[i] === '' || r[i] === undefined) return;
           grid.appendChild(h('div', null, h('div', { class: 'k' }, k), h('div', { class: 'v' }, r[i])));
         });
         list.appendChild(h('div', { class: 'card cm' + (r[0] === 'Conception Abbey' ? ' mine' : '') },
@@ -448,6 +460,90 @@ form.f{display:flex;flex-direction:column;gap:14px}
       box.appendChild(list);
     }
     foot.forEach(function (t) { box.appendChild(h('div', { class: 'hint', style: 'margin-top:12px' }, t)); });
+    return box;
+  }
+
+  /* ---- editing the community figures ---- */
+  function startEdit(s, d) {
+    var head = d.rows[0] || [];
+    var items = [];
+    d.rows.slice(1).forEach(function (r) {
+      if (!r.some(function (x) { return x !== ''; })) return;
+      var cells = head.map(function (_, i) { return r[i] === undefined ? '' : r[i]; });
+      var foot = s.name !== 'Community Overview' && head.length > 1 && cells[0] !== '' && cells.slice(1).every(function (x) { return x === ''; });
+      items.push({ cells: cells, foot: foot });
+    });
+    s.edit = { items: items, err: '', armed: -1, busy: false };
+    state.flash = '';
+    render();
+  }
+  function cancelEdit(s) { s.edit = null; render(); }
+  function saveEdit(s, d) {
+    var e = s.edit, head = d.rows[0] || [];
+    var rows = [head.slice()];
+    e.items.forEach(function (it) {
+      var cells = it.cells.map(function (x) { return String(x).trim(); });
+      if (cells.every(function (x) { return x === ''; })) return;
+      rows.push(cells);
+    });
+    if (rows.length < 2) { e.err = 'There is nothing to save. Add at least one line.'; render(); return; }
+    e.busy = true; e.err = ''; render();
+    api('saveTab', { name: s.name, rows: rows, base: d.rows }).then(function (res) {
+      if (!res || !res.ok) { e.busy = false; e.err = (res && res.error) || 'Something went wrong.'; render(); return; }
+      tabData[s.name] = { rows: res.rows };
+      tabCachePut(s.name, res.rows);
+      s.edit = null; state.flash = 'Saved.'; render(true);
+    }).catch(function () { e.busy = false; e.err = NET_ERR; render(); });
+  }
+  function editTab(s, box, d) {
+    var e = s.edit, head = d.rows[0] || [], isOv = s.name === 'Community Overview';
+    if (e.err) box.appendChild(h('div', { class: 'banner err', role: 'alert', style: 'margin-bottom:12px' }, e.err));
+    function bar() {
+      return h('div', { class: 'btnrow' },
+        h('button', { class: 'secondary', type: 'button', disabled: e.busy, onclick: function () { cancelEdit(s); } }, 'Cancel'),
+        h('button', { class: 'primary', type: 'button', disabled: e.busy, onclick: function () { saveEdit(s, d); } }, e.busy ? 'Saving…' : 'Save'));
+    }
+    function inp(it, i, label) {
+      return h('input', { type: 'text', value: it.cells[i], 'aria-label': label, autocomplete: 'off', oninput: function (ev) { it.cells[i] = ev.target.value; } });
+    }
+    function removeBtn(idx) {
+      var armed = e.armed === idx;
+      return h('button', { class: 'rm' + (armed ? ' armed' : ''), type: 'button', onclick: function () {
+        if (e.armed === idx) { e.items.splice(idx, 1); e.armed = -1; } else e.armed = idx;
+        render();
+      } }, armed ? 'Tap again to remove' : 'Remove');
+    }
+    box.appendChild(bar());
+    box.appendChild(h('div', { style: 'height:14px' }));
+    var list = h('div', { class: 'list' });
+    e.items.forEach(function (it, idx) {
+      if (isOv) {
+        list.appendChild(h('div', { class: 'card kv ed' }, inp(it, 0, 'Label'), inp(it, 1, 'Value'), removeBtn(idx)));
+      } else if (it.foot) {
+        list.appendChild(h('div', { class: 'card cm ed' }, h('div', { class: 'k' }, 'Footnote'),
+          h('textarea', { 'aria-label': 'Footnote', oninput: function (ev) { it.cells[0] = ev.target.value; } }, it.cells[0]), removeBtn(idx)));
+      } else {
+        var grid = h('div', { class: 'grid' }, h('div', { class: 'full' }, h('div', { class: 'k' }, head[0]), inp(it, 0, head[0])));
+        head.forEach(function (k, i) {
+          if (i === 0) return;
+          var isNote = k === 'Notes';
+          grid.appendChild(h('div', { class: isNote ? 'full' : null }, h('div', { class: 'k' }, k),
+            isNote ? h('textarea', { 'aria-label': k, oninput: function (ev) { it.cells[i] = ev.target.value; } }, it.cells[i]) : inp(it, i, k)));
+        });
+        list.appendChild(h('div', { class: 'card cm ed' }, grid, removeBtn(idx)));
+      }
+    });
+    box.appendChild(list);
+    box.appendChild(h('div', { style: 'height:12px' }));
+    box.appendChild(h('button', { class: 'secondary', type: 'button', onclick: function () {
+      var blank = { cells: head.map(function () { return ''; }), foot: false };
+      var at = e.items.length;
+      for (var i = 0; i < e.items.length; i++) if (e.items[i].foot) { at = i; break; }
+      e.items.splice(at, 0, blank); e.armed = -1; render();
+    } }, isOv ? 'Add a line' : 'Add a community'));
+    box.appendChild(h('div', { style: 'height:12px' }));
+    box.appendChild(bar());
+    box.appendChild(h('div', { class: 'hint', style: 'margin-top:12px' }, 'Nothing is saved until you tap Save. The change goes straight to the Sheet for everyone.'));
     return box;
   }
 
