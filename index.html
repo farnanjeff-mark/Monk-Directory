@@ -32,7 +32,22 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .secondary{height:54px;border:2px solid var(--field);border-radius:14px;background:#fff;color:var(--ink);font-size:18px;font-weight:600;width:100%}
 .sbtn{width:52px;height:52px;border:0;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .card{background:#fff;border:1px solid var(--border);border-radius:14px}
-.menu{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:auto}
+.bottom{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.wide{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 16px;background:#fff;border:1px solid var(--border);border-radius:16px;color:var(--ink);text-align:left;font-size:18px;font-weight:600}
+.wide .ico{width:44px;height:44px;border-radius:12px;background:var(--tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.wide .chev{margin-left:auto;color:var(--muted);flex:none}
+.wide .s{font-size:14px;font-weight:400;color:var(--muted)}
+.cm{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.cm.mine{background:var(--tint);border-color:#BCD3C9}
+.cm .nm{font-size:17px;font-weight:700}
+.cm .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px}
+.cm .grid .k{font-size:12px;color:var(--muted)}
+.cm .grid .v{font-size:16px;font-weight:600}
+.cm .note{font-size:13px;color:var(--muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #E3E6E1;font-size:17px}
+.kv:last-child{border-bottom:0}
+.kv b{font-weight:700}
+.menu{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .menu button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;aspect-ratio:1/1;min-width:0;padding:8px;text-align:center;background:#fff;border:1px solid var(--border);border-radius:16px;color:var(--ink)}
 .menu .ico{width:44px;height:44px;border-radius:12px;background:var(--tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .menu .t{font-size:15px;font-weight:600;line-height:1.2}
@@ -126,6 +141,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     chev: '<path d="M9 6l6 6-6 6"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
     cross: '<path d="M12 3v18M6 9h12"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>'
   };
   function icon(name, size) {
@@ -260,6 +276,33 @@ form.f{display:flex;flex-direction:column;gap:14px}
     });
   }
 
+  /* ---------- community tabs (read-only) ---------- */
+  var TABS = {
+    'Community Overview': 'Our community at a glance',
+    'Other Communities': 'Other Benedictine communities',
+    'Community Comparison': 'Conception next to the others'
+  };
+  var tabData = {};
+  function tabCacheGet(n) { try { var s = localStorage.getItem('monkTab:' + n); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function tabCachePut(n, rows) { try { localStorage.setItem('monkTab:' + n, JSON.stringify(rows)); } catch (e) {} }
+  function loadTab(name) {
+    if (!tabData[name]) { var c = tabCacheGet(name); if (c) tabData[name] = { rows: c }; }
+    api('tab', { name: name }).then(function (res) {
+      if (!res || !res.ok) {
+        tabData[name] = Object.assign(tabData[name] || {}, { error: (res && res.error) || 'Something went wrong.' });
+      } else {
+        var changed = !tabData[name] || JSON.stringify(tabData[name].rows) !== JSON.stringify(res.rows);
+        tabData[name] = { rows: res.rows };
+        tabCachePut(name, res.rows);
+        if (!changed) return;
+      }
+      if (cur().v === 'tab' && cur().name === name) render();
+    }).catch(function () {
+      tabData[name] = Object.assign(tabData[name] || {}, { error: NET_ERR });
+      if (cur().v === 'tab' && cur().name === name) render();
+    });
+  }
+
   /* ---------- navigation ---------- */
   function cur() { return state.stack[state.stack.length - 1]; }
   function go(v, extra) {
@@ -326,18 +369,79 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'sub' }, todayLine),
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
+    var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
+      h('div', { class: 'ico' }, icon('chart')),
+      h('div', null, 'Community'),
+      h('span', { class: 'chev' }, icon('chev', 20)));
     var menu = h('div', { class: 'menu' },
       menuItem('person', 'Monk Lookup', 'One monk’s full profile', function () { go('results', { q: '' , focus: true }); }),
       menuItem('list', 'All Monks', 'Browse the full list', function () { go('all'); }),
       menuItem('plus', 'Add a Monk', 'Enter a new record', function () { go('form', { row: null }); }));
 
-    return h('div', { class: 'home' }, coming, menu);
+    return h('div', { class: 'home' }, coming, h('div', { class: 'bottom' }, community, menu));
   }
   function menuItem(ic, t, s, fn) {
     return h('button', { onclick: fn },
       h('div', { class: 'ico' }, icon(ic)),
       h('div', null, h('div', { class: 't' }, t), h('div', { class: 's' }, s)),
       h('span', { class: 'chev' }, icon('chev', 20)));
+  }
+
+  function viewCommunity() {
+    return h('div', { class: 'narrow' }, header('Community', 'CONCEPTION ABBEY'), h('div', { style: 'height:16px' }),
+      h('div', { class: 'list' }, Object.keys(TABS).map(function (n) {
+        return h('button', { class: 'wide', onclick: function () { go('tab', { name: n }); } },
+          h('div', { class: 'ico' }, icon('chart')),
+          h('div', null, h('div', null, n), h('div', { class: 's' }, TABS[n])),
+          h('span', { class: 'chev' }, icon('chev', 20)));
+      })),
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'hint' }, 'These figures were copied from the priest’s workbook. They do not change when monks are added or edited.'));
+  }
+
+  function viewTab(s) {
+    var name = s.name, d = tabData[name];
+    if (!d) { d = tabData[name] = tabCacheGet(name) ? { rows: tabCacheGet(name) } : null; }
+    if (!s.asked) { s.asked = true; loadTab(name); }
+    var box = h('div', { class: 'narrow' }, header(name, TABS[name].toUpperCase()), h('div', { style: 'height:16px' }));
+    if (!d) { box.appendChild(h('div', { class: 'center' }, 'Loading…')); return box; }
+    if (d.error && !d.rows) {
+      box.appendChild(h('div', { class: 'banner err', role: 'alert' }, d.error));
+      box.appendChild(h('div', { style: 'height:10px' }));
+      box.appendChild(h('button', { class: 'secondary', onclick: function () { tabData[name] = null; s.asked = false; render(); } }, 'Try again'));
+      if (/not available|Unknown request/.test(d.error)) box.appendChild(h('div', { class: 'hint', style: 'margin-top:10px' }, 'The data service needs its update published first.'));
+      return box;
+    }
+    if (d.error) box.appendChild(h('div', { class: 'banner err', role: 'status', style: 'margin-bottom:12px' }, 'Could not refresh. Showing the last saved figures.'));
+    var rows = d.rows || [];
+    var foot = [];
+    if (name === 'Community Overview') {
+      var card = h('div', { class: 'card' });
+      rows.slice(1).forEach(function (r) {
+        if (!r[0] && !r[1]) return;
+        if (r[0] === 'Note') { foot.push(r[1]); return; }
+        card.appendChild(h('div', { class: 'kv' }, h('span', null, r[0]), h('b', null, r[1])));
+      });
+      box.appendChild(card);
+    } else {
+      var head = rows[0] || [];
+      var list = h('div', { class: 'list' });
+      rows.slice(1).forEach(function (r) {
+        var rest = r.slice(1).some(function (x) { return x !== ''; });
+        if (!rest) { if (r[0]) foot.push(r[0]); return; }
+        var noteIdx = head.indexOf('Notes'), note = noteIdx > 0 ? r[noteIdx] : '';
+        var grid = h('div', { class: 'grid' });
+        head.forEach(function (k, i) {
+          if (i === 0 || i === noteIdx || r[i] === '') return;
+          grid.appendChild(h('div', null, h('div', { class: 'k' }, k), h('div', { class: 'v' }, r[i])));
+        });
+        list.appendChild(h('div', { class: 'card cm' + (r[0] === 'Conception Abbey' ? ' mine' : '') },
+          h('div', { class: 'nm' }, r[0]), grid, note ? h('div', { class: 'note' }, note) : null));
+      });
+      box.appendChild(list);
+    }
+    foot.forEach(function (t) { box.appendChild(h('div', { class: 'hint', style: 'margin-top:12px' }, t)); });
+    return box;
   }
 
   function viewResults(s) {
@@ -544,6 +648,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
       else if (s.v === 'upcoming') body = viewUpcoming(s);
       else if (s.v === 'profile') body = viewProfile(s);
       else if (s.v === 'form') body = viewForm(s);
+      else if (s.v === 'community') body = viewCommunity();
+      else if (s.v === 'tab') body = viewTab(s);
       else body = viewHome();
       page.appendChild(body);
     }

@@ -43,6 +43,7 @@ function doPost(e) {
   try {
     if (req.action === 'list') return json_({ ok: true, monks: readAll_().monks });
     if (req.action === 'save') return json_(saveMonk_(req.payload, req.row, req.orig));
+    if (req.action === 'tab') return json_(readTab_(req.name));
     return json_({ ok: false, error: 'Unknown request.' });
   } catch (err) {
     return json_({ ok: false, error: friendlyError_(err) });
@@ -86,6 +87,26 @@ function safeEqual_(a, b) {
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ---------------- read-only community tabs ---------------- */
+
+/** Only these tabs can be read this way. It never writes. */
+var READABLE_TABS = ['Community Overview', 'Other Communities', 'Community Comparison'];
+
+function readTab_(name) {
+  if (READABLE_TABS.indexOf(name) < 0) return { ok: false, error: 'That page is not available.' };
+  var sheet = getSS_().getSheetByName(name);
+  if (!sheet) return { ok: false, error: 'The "' + name + '" tab was not found.' };
+  var rows = sheet.getDataRange().getDisplayValues();
+  // drop empty rows at the end and empty columns on the right
+  var lastRow = 0, lastCol = 0;
+  for (var r = 0; r < rows.length; r++) {
+    for (var c = 0; c < rows[r].length; c++) {
+      if (rows[r][c] !== '') { lastRow = r + 1; if (c + 1 > lastCol) lastCol = c + 1; }
+    }
+  }
+  return { ok: true, name: name, rows: rows.slice(0, lastRow).map(function (row) { return row.slice(0, lastCol); }) };
 }
 
 /* ---------------- saving ---------------- */
