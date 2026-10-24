@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#F4F5F2;--ink:#1B2430;--accent:#2D5A4A;--muted:#55606E;--border:#D5D9D3;--tint:#E6EFEB;--field:#9AA5A0;--faint:#6B7684;--err:#9B2C2C;--errbg:#FBEAEA}
+:root{--purple:#5B2D91;--purplebg:#E9DFF5;--lilac:#7E57B5;--lilacbg:#F3EEF9;--bg:#F4F5F2;--ink:#1B2430;--accent:#2D5A4A;--muted:#55606E;--border:#D5D9D3;--tint:#E6EFEB;--field:#9AA5A0;--faint:#6B7684;--err:#9B2C2C;--errbg:#FBEAEA}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
@@ -82,6 +82,18 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev .who{font-size:16px;font-weight:600}
 .ev .what{font-size:14px;color:var(--muted)}
 .ev .when{margin-left:auto;font-size:14px;font-weight:600;color:var(--accent);white-space:nowrap}
+.ev.fd{cursor:default}
+.ev.fd .badge{background:var(--lilacbg);color:var(--lilac)}
+.ev.fd .who{color:var(--ink)}
+.ev.fd .when{color:var(--lilac)}
+.ev.fd.sol .badge{background:var(--purplebg);color:var(--purple)}
+.ev.fd.sol .who{color:var(--purple)}
+.ev.fd.sol .when{color:var(--purple)}
+.rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
+.rank.sol{background:var(--purplebg);color:var(--purple)}
+.fcard{padding:16px;display:flex;flex-direction:column;gap:12px}
+.fcard .hd{display:flex;align-items:baseline;justify-content:space-between}
+.month{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:6px}
 .jub{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#F6E9C8;color:#6B4E00;font-size:12px;font-weight:700}
 .list{display:flex;flex-direction:column;gap:10px}
 .row{display:flex;align-items:center;gap:14px;min-height:68px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:14px;text-align:left;width:100%;color:var(--ink)}
@@ -123,6 +135,143 @@ form.f{display:flex;flex-direction:column;gap:14px}
   var MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var JUBILEES = [25, 50, 60, 70];
+
+  /* Feast calendar. Ranks follow the Swiss-American Congregation 2026 ordo (the calendar
+     Conception Abbey uses) and the US Church calendar. Dates work themselves out every year.
+     Set to false if the Abbey keeps the Ascension on Thursday. */
+  var ASCENSION_ON_SUNDAY = true;
+
+  // Fixed-date solemnities. std = moved to the next day if it lands on a Sunday of Advent, Lent or Easter, or in Holy Week.
+  var FIXED_SOL = [
+    { m: 1, d: 1, name: 'Mary, Mother of God' },
+    { m: 3, d: 19, name: 'St. Joseph, Spouse of Mary', joseph: true },
+    { m: 3, d: 25, name: 'The Annunciation of the Lord' },
+    { m: 3, d: 21, name: 'Passing of St. Benedict', note: 'Benedictine' },
+    { m: 5, d: 10, name: 'Dedication of the Basilica', note: 'Abbey Basilica' },
+    { m: 6, d: 24, name: 'Nativity of St. John the Baptist' },
+    { m: 6, d: 29, name: 'Sts. Peter and Paul' },
+    { m: 7, d: 11, name: 'St. Benedict, Abbot', note: 'Benedictine' },
+    { m: 8, d: 15, name: 'The Assumption of Mary' },
+    { m: 9, d: 29, name: 'Archangels Michael, Gabriel and Raphael', note: 'Abbey’s secondary patron' },
+    { m: 11, d: 1, name: 'All Saints' },
+    { m: 12, d: 8, name: 'The Immaculate Conception', note: 'Patron of the Abbey and Basilica' },
+    { m: 12, d: 25, name: 'The Nativity of the Lord (Christmas)' }
+  ];
+  // Fixed-date feasts. lord = a feast of the Lord, which beats an ordinary Sunday.
+  var FIXED_FEAST = [
+    { m: 1, d: 25, name: 'Conversion of St. Paul' },
+    { m: 2, d: 2, name: 'The Presentation of the Lord', lord: true },
+    { m: 2, d: 10, name: 'St. Scholastica', note: 'Benedictine' },
+    { m: 2, d: 22, name: 'Chair of St. Peter' },
+    { m: 4, d: 25, name: 'St. Mark' },
+    { m: 5, d: 3, name: 'Sts. Philip and James' },
+    { m: 5, d: 14, name: 'St. Matthias' },
+    { m: 5, d: 31, name: 'The Visitation of Mary' },
+    { m: 7, d: 3, name: 'St. Thomas' },
+    { m: 7, d: 22, name: 'St. Mary Magdalene' },
+    { m: 7, d: 25, name: 'St. James' },
+    { m: 8, d: 6, name: 'The Transfiguration of the Lord', lord: true },
+    { m: 8, d: 10, name: 'St. Lawrence' },
+    { m: 8, d: 24, name: 'St. Bartholomew' },
+    { m: 9, d: 3, name: 'St. Gregory the Great', note: 'Benedictine' },
+    { m: 9, d: 8, name: 'The Nativity of Mary' },
+    { m: 9, d: 14, name: 'The Exaltation of the Holy Cross', lord: true },
+    { m: 9, d: 21, name: 'St. Matthew' },
+    { m: 10, d: 18, name: 'St. Luke' },
+    { m: 10, d: 28, name: 'Sts. Simon and Jude' },
+    { m: 11, d: 9, name: 'Dedication of the Lateran Basilica', lord: true },
+    { m: 11, d: 11, name: 'St. Martin of Tours' },
+    { m: 11, d: 30, name: 'St. Andrew' },
+    { m: 12, d: 12, name: 'Our Lady of Guadalupe' },
+    { m: 12, d: 26, name: 'St. Stephen, First Martyr' },
+    { m: 12, d: 27, name: 'St. John, Apostle' },
+    { m: 12, d: 28, name: 'The Holy Innocents' }
+  ];
+
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function easterDate(y) {
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    var f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    var hh = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    var l = (32 + 2 * e + 2 * i - hh - k) % 7, m = Math.floor((a + 11 * hh + 22 * l) / 451);
+    var mo = Math.floor((hh + l - 7 * m + 114) / 31), da = ((hh + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, mo - 1, da);
+  }
+  function advent1(y) { var d = new Date(y, 10, 27); return addDays(d, (7 - d.getDay()) % 7); }
+
+  /* All solemnities and feasts that fall in calendar year y. */
+  function feastsForYear(y) {
+    var E = easterDate(y), A1 = advent1(y), out = [];
+    function sundayOfSeason(d) {
+      if (d.getDay() !== 0) return false;
+      if (d >= A1 && d <= new Date(y, 11, 24)) return true;               // Advent
+      if (d >= addDays(E, -46) && d < addDays(E, -7)) return true;         // Lent
+      if (d >= addDays(E, 7) && d <= addDays(E, 49)) return true;          // Easter, through Pentecost
+      return false;
+    }
+    function inHolyWeekOrOctave(d) { return d >= addDays(E, -7) && d <= addDays(E, 7); }
+    function add(date, name, rank, note) { out.push({ date: date, name: name, rank: rank, note: note || '' }); }
+
+    // Days already taken by the big moveable solemnities of the Lord (they outrank a saint's solemnity).
+    var ASC_DAYS = ASCENSION_ON_SUNDAY ? 42 : 39;
+    var lordDays = [E, addDays(E, ASC_DAYS), addDays(E, 49), addDays(E, 56), addDays(E, 63), addDays(E, 68)];
+    function lordTaken(d) { return lordDays.some(function (x) { return sameDay(x, d); }); }
+
+    FIXED_SOL.forEach(function (s) {
+      var d = new Date(y, s.m - 1, s.d);
+      if (s.joseph && d >= addDays(E, -7) && d < E) d = addDays(E, -8);   // St. Joseph in Holy Week: Saturday before Palm Sunday
+      else if (sundayOfSeason(d)) d = addDays(d, 1);
+      else if (inHolyWeekOrOctave(d)) d = addDays(E, 8);
+      // Two solemnities pushed onto the same day: the one listed first yields to the next free day.
+      // St. John the Baptist moves back a day (as the Church does); the others move forward.
+      var step = s.name.indexOf('John the Baptist') >= 0 ? -1 : 1;
+      while (lordTaken(d) || out.some(function (o) { return o.rank === 'sol' && sameDay(o.date, d); })) d = addDays(d, step);
+      add(d, s.name, 'sol', s.note);
+    });
+
+    // (The Annunciation is listed before St. Benedict so a feast of the Lord keeps the day if both are moved.)
+    // Moveable days (US calendar; Epiphany and Corpus Christi on Sundays)
+    var epi = new Date(y, 0, 2); epi = addDays(epi, (7 - epi.getDay()) % 7);
+    add(epi, 'The Epiphany of the Lord', 'sol');
+    add(epi.getDate() >= 7 ? addDays(epi, 1) : addDays(epi, 7), 'The Baptism of the Lord', 'feast');
+    add(E, 'Easter Sunday', 'sol');
+    add(addDays(E, ASC_DAYS), 'The Ascension of the Lord', 'sol');
+    add(addDays(E, 49), 'Pentecost', 'sol');
+    add(addDays(E, 56), 'The Most Holy Trinity', 'sol');
+    add(addDays(E, 63), 'Corpus Christi', 'sol');
+    add(addDays(E, 68), 'The Most Sacred Heart of Jesus', 'sol');
+    add(addDays(A1, -7), 'Christ the King', 'sol');
+    var hf = new Date(y, 11, 25).getDay() === 0 ? new Date(y, 11, 30) : (function () { var d = new Date(y, 11, 26); return addDays(d, (7 - d.getDay()) % 7); })();
+    add(hf, 'The Holy Family', 'feast');
+
+    FIXED_FEAST.forEach(function (f) {
+      var d = new Date(y, f.m - 1, f.d);
+      if (d.getDay() === 0 && !(f.lord && !sundayOfSeason(d))) return;     // a Sunday takes precedence
+      if (inHolyWeekOrOctave(d)) return;
+      add(d, f.name, 'feast', f.note);
+    });
+
+    // If a feast shares a day with a solemnity or another entry, keep the higher one only.
+    return out.filter(function (a) {
+      return !out.some(function (b) { return b !== a && sameDay(a.date, b.date) && (b.rank === 'sol' && a.rank === 'feast'); });
+    });
+  }
+
+  /* Solemnities and feasts from today through the next `days` days. */
+  function upcomingFeasts(days) {
+    var t = today(), end = addDays(t, days), list = [];
+    [t.getFullYear(), t.getFullYear() + 1].forEach(function (y) {
+      feastsForYear(y).forEach(function (f) {
+        if (f.date >= t && f.date <= end) {
+          list.push({ date: f.date, days: Math.round((f.date - t) / 86400000), name: f.name, rank: f.rank, note: f.note });
+        }
+      });
+    });
+    list.sort(function (a, b) { return a.days - b.days || (a.rank === 'sol' ? -1 : 1); });
+    return list;
+  }
+
 
   var state = { monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
   var memPass = '';
@@ -368,6 +517,15 @@ form.f{display:flex;flex-direction:column;gap:14px}
         h('div', { class: 'what' }, ev.what, ev.jubilee ? h('span', { class: 'jub' }, 'Jubilee') : null)),
       h('div', { class: 'when' }, whenText(ev.days)));
   }
+  /* Feast Days (solemnities in deep purple, feasts in light purple). Not clickable: there is no profile behind them. */
+  function feastRow(f) {
+    return h('div', { class: 'ev fd ' + f.rank },
+      h('div', { class: 'badge' }, h('span', null, MON[f.date.getMonth()].toUpperCase()), h('span', null, f.date.getDate())),
+      h('div', { style: 'min-width:0' },
+        h('div', { class: 'who' }, f.name),
+        h('div', { class: 'what' }, f.note || '', h('span', { class: 'rank ' + f.rank, style: f.note ? '' : 'margin-left:0' }, f.rank === 'sol' ? 'Solemnity' : 'Feast'))),
+      h('div', { class: 'when' }, whenText(f.days)));
+  }
   function byRow(row) { for (var i = 0; i < state.monks.length; i++) if (state.monks[i].row === row) return state.monks[i]; return null; }
 
   /* ---------- views ---------- */
@@ -385,6 +543,13 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'sub' }, todayLine),
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
+    var fds = upcomingFeasts(30).slice(0, 4);
+    var feasts = h('div', { class: 'card fcard' },
+      h('div', { class: 'hd' }, h('h2', null, 'Feast Days'),
+        h('button', { class: 'linkbtn', onclick: function () { go('feasts'); } }, 'See all')),
+      h('div', { class: 'sub' }, 'Solemnities and feasts, next 30 days'),
+      fds.length ? fds.map(feastRow) : h('div', { class: 'sub' }, 'No solemnities or feasts in the next 30 days'));
+
     var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
       h('div', { class: 'ico' }, icon('chart')),
       h('div', null, 'Community'),
@@ -394,7 +559,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       menuItem('list', 'All Monks', 'Browse the full list', function () { go('all'); }),
       menuItem('plus', 'Add a Monk', 'Enter a new record', function () { go('form', { row: null }); }));
 
-    return h('div', { class: 'home' }, coming, h('div', { class: 'bottom' }, community, menu));
+    return h('div', { class: 'home' }, coming, feasts, h('div', { class: 'bottom' }, community, menu));
   }
   function menuItem(ic, t, s, fn) {
     return h('button', { onclick: fn },
@@ -591,6 +756,19 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of profession or ordination.'));
   }
 
+  function viewFeasts() {
+    var list = upcomingFeasts(365), kids = [], lastKey = '';
+    list.forEach(function (f) {
+      var key = f.date.getFullYear() + '-' + f.date.getMonth();
+      if (key !== lastKey) { kids.push(h('div', { class: 'month' }, MONTHS_LONG[f.date.getMonth()].toUpperCase() + ' ' + f.date.getFullYear())); lastKey = key; }
+      kids.push(feastRow(f));
+    });
+    return h('div', { class: 'narrow' }, header('Feast Days', 'NEXT 12 MONTHS'), h('div', { style: 'height:16px' }),
+      h('div', { class: 'card fcard' }, kids),
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'hint' }, 'Deep purple is a solemnity. Light purple is a feast. Dates are worked out each year, including Easter and the days that move with it.'));
+  }
+
   function fact(k, v, extra) {
     return h('div', null, h('div', { class: 'k' }, k),
       v ? h('div', { class: 'v' }, v, extra ? h('small', null, ' (' + extra + ')') : null) : h('div', { class: 'v none' }, 'Not set'));
@@ -749,6 +927,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       if (s.v === 'results') body = viewResults(s);
       else if (s.v === 'all') body = viewAll(s);
       else if (s.v === 'upcoming') body = viewUpcoming(s);
+      else if (s.v === 'feasts') body = viewFeasts(s);
       else if (s.v === 'profile') body = viewProfile(s);
       else if (s.v === 'form') body = viewForm(s);
       else if (s.v === 'community') body = viewCommunity();
