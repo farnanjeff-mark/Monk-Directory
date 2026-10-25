@@ -91,6 +91,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev.fd.sol .when{color:var(--purple)}
 .rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
 .rank.sol{background:var(--purplebg);color:var(--purple)}
+.tabs{display:flex;gap:6px;padding:4px;margin-top:2px;background:rgba(255,255,255,.55);border-radius:12px}
+.tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:15px;font-weight:600;color:var(--muted)}
+.tabbtn.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .fcard{padding:16px;display:flex;flex-direction:column;gap:12px;background:#E9DFF5;border-color:#D3C2EA}
 .fcard .badge{background:#fff}
 .fcard .sub,.fcard .ev .what,.fcard .hint{color:#4A3F5C}
@@ -547,11 +550,20 @@ form.f{display:flex;flex-direction:column;gap:14px}
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
     var fds = upcomingFeasts(30).slice(0, 4);
+    var onFeasts = state.homeTab === 'feasts';
+    function tabBtn(key, label) {
+      var on = (key === 'feasts') === onFeasts;
+      return h('button', { class: 'tabbtn' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
+        onclick: function () { state.homeTab = key; render(); } }, label);
+    }
+    var tabs = h('div', { class: 'tabs' }, tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'));
     var feasts = h('div', { class: 'card fcard' },
       h('div', { class: 'hd' }, h('h2', null, 'Feast Days'),
         h('button', { class: 'linkbtn', onclick: function () { go('feasts'); } }, 'See all')),
       h('div', { class: 'sub' }, 'Solemnities and feasts, next 30 days'),
       fds.length ? fds.map(feastRow) : h('div', { class: 'sub' }, 'No solemnities or feasts in the next 30 days'));
+    var mainCard = onFeasts ? feasts : coming;
+    mainCard.appendChild(tabs);
 
     var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
       h('div', { class: 'ico' }, icon('chart')),
@@ -562,7 +574,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       menuItem('list', 'All Monks', 'Browse the full list', function () { go('all'); }),
       menuItem('plus', 'Add a Monk', 'Enter a new record', function () { go('form', { row: null }); }));
 
-    return h('div', { class: 'home' }, coming, feasts, h('div', { class: 'bottom' }, community, menu));
+    return h('div', { class: 'home' }, mainCard, h('div', { class: 'bottom' }, community, menu));
   }
   function menuItem(ic, t, s, fn) {
     return h('button', { onclick: fn },
