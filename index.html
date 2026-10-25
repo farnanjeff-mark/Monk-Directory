@@ -91,9 +91,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev.fd.sol .when{color:var(--purple)}
 .rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
 .rank.sol{background:var(--purplebg);color:var(--purple)}
-.tabs{display:flex;gap:6px;padding:4px;margin-top:2px;background:rgba(255,255,255,.55);border-radius:12px}
-.tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:15px;font-weight:600;color:var(--muted)}
-.tabbtn.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs{display:flex;gap:6px;padding:4px;background:#fff;border:2px solid var(--accent);border-radius:12px}
+.tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:16px;font-weight:700;color:var(--accent)}
+.tabbtn.on{background:var(--accent);color:#fff}
 .fcard{padding:16px;display:flex;flex-direction:column;gap:12px;background:#E9DFF5;border-color:#D3C2EA}
 .fcard .badge{background:#fff}
 .fcard .sub,.fcard .ev .what,.fcard .hint{color:#4A3F5C}
@@ -563,7 +563,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'sub' }, 'Solemnities and feasts, next 30 days'),
       fds.length ? fds.map(feastRow) : h('div', { class: 'sub' }, 'No solemnities or feasts in the next 30 days'));
     var mainCard = onFeasts ? feasts : coming;
-    mainCard.appendChild(tabs);
+    mainCard.insertBefore(tabs, mainCard.firstChild);
 
     var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
       h('div', { class: 'ico' }, icon('chart')),
