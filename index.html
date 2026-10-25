@@ -923,9 +923,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     page.appendChild(h('div', { class: 'topbar' },
       h('div', { class: 'brand' },
         h('div', { class: 'logo' }, icon('cross')),
-        h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory'))),
-      h('div', { style: 'display:flex;align-items:center;gap:10px' },
-        h('button', { class: 'iconbtn', 'aria-label': 'Refresh the list', title: 'Refresh', onclick: function () { load(function () { state.flash = ''; }); } }, icon('refresh', 20)))));
+        h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory')))));
 
     if (!configured()) {
       page.appendChild(h('div', { class: 'banner err', role: 'alert' }, 'This page is not connected to the directory yet. The link in config.js still needs to be filled in.'));
