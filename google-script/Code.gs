@@ -11,7 +11,8 @@
  *
  * The script writes columns A-K of the Master List tab (L-P are formulas) and
  * never deletes a Master List row. It also keeps an "Absences" tab (vacations,
- * retreats and other absences), which it creates on first use. It can also rewrite the three community tabs
+ * retreats and other absences), a "Contacts" tab (phone numbers) and an
+ * "Assignment History" tab, which it creates on first use. It can also rewrite the three community tabs
  * (Community Overview, Other Communities, Community Comparison), including
  * removing rows there.
  */
@@ -51,6 +52,11 @@ function doPost(e) {
     if (req.action === 'absences') return json_(readAbsences_());
     if (req.action === 'saveAbsence') return json_(saveAbsence_(req.absence));
     if (req.action === 'deleteAbsence') return json_(deleteAbsence_(req.id));
+    if (req.action === 'contacts') return json_(readContacts_());
+    if (req.action === 'savePhone') return json_(savePhone_(req.contact));
+    if (req.action === 'assignments') return json_(readAssignments_());
+    if (req.action === 'saveAssignment') return json_(saveAssignment_(req.assignment));
+    if (req.action === 'deleteAssignment') return json_(deleteAssignment_(req.id));
     return json_({ ok: false, error: 'Unknown request.' });
   } catch (err) {
     return json_({ ok: false, error: friendlyError_(err) });
@@ -496,4 +502,169 @@ function deleteAbsence_(id) {
   } finally {
     lock.releaseLock();
   }
+}
+
+
+/* ---------------- contacts (phone numbers) and assignment history ---------------- */
+
+var CON_TAB = 'Contacts';
+var CON_HEADERS = ['Monastic Name', 'Last Name', 'Phone'];
+var ASG_TAB = 'Assignment History';
+var ASG_HEADERS = ['ID', 'Monastic Name', 'Last Name', 'Assignment', 'Start Date', 'End Date'];
+
+/** Finds a helper tab, creating it with headings the first time. textCols = number of leading text columns. */
+function helperSheet_(name, headers, textCols) {
+  var ss = getSS_();
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, textCols).setNumberFormat('@');
+    if (headers.length > textCols) sheet.getRange(2, textCols + 1, sheet.getMaxRows() - 1, headers.length - textCols).setNumberFormat('mmm d, yyyy');
+  }
+  return sheet;
+}
+
+function monkExists_(monastic, last) {
+  var monks = readAll_().monks;
+  for (var i = 0; i < monks.length; i++) {
+    if (monks[i].monastic.toLowerCase() === monastic.toLowerCase() && monks[i].last.toLowerCase() === last.toLowerCase()) return true;
+  }
+  return false;
+}
+
+function withLock_(fn) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    return { ok: false, error: 'The directory is busy. Please try again in a moment.' };
+  }
+  try {
+    return fn();
+  } catch (err) {
+    return { ok: false, error: friendlyError_(err) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* phone numbers */
+
+function readContacts_() {
+  var sheet = helperSheet_(CON_TAB, CON_HEADERS, 3);
+  var n = sheet.getMaxRows() - 1;
+  var out = [];
+  if (n > 0) {
+    var vals = sheet.getRange(2, 1, n, 3).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var phone = str_(vals[i][2]);
+      if (!phone) continue;
+      out.push({ monastic: str_(vals[i][0]), last: str_(vals[i][1]), phone: phone });
+    }
+  }
+  return { ok: true, contacts: out };
+}
+
+/** Adds, changes or (when phone is blank) removes one monk's phone number. */
+function savePhone_(c) {
+  return withLock_(function () {
+    c = c || {};
+    var monastic = text_(c.monastic, 80, 'Monastic name');
+    var last = text_(c.last, 80, 'Last name');
+    var phone = text_(c.phone, 30, 'Phone');
+    if (phone && !/^[0-9+().\-\sxX#]{5,30}$/.test(phone)) return { ok: false, error: 'A phone number can only have digits, spaces and + - ( ) . x.' };
+    if (!monkExists_(monastic, last)) return { ok: false, error: 'That monk is not in the directory.' };
+    var sheet = helperSheet_(CON_TAB, CON_HEADERS, 3);
+    var n = sheet.getMaxRows() - 1;
+    var vals = sheet.getRange(2, 1, n, 3).getValues();
+    var row = 0, lastUsed = 1;
+    for (var i = 0; i < vals.length; i++) {
+      if (str_(vals[i][0]) !== '' || str_(vals[i][1]) !== '') lastUsed = i + 2;
+      if (!row && str_(vals[i][0]).toLowerCase() === monastic.toLowerCase() && str_(vals[i][1]).toLowerCase() === last.toLowerCase()) row = i + 2;
+    }
+    if (!phone) {
+      if (row) { sheet.deleteRow(row); SpreadsheetApp.flush(); }
+      return readContacts_();
+    }
+    if (!row) {
+      row = lastUsed + 1;
+      if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 20);
+    }
+    sheet.getRange(row, 1, 1, 3).setNumberFormat('@');
+    sheet.getRange(row, 1, 1, 3).setValues([[monastic, last, phone]]);
+    SpreadsheetApp.flush();
+    return readContacts_();
+  });
+}
+
+/* assignment history */
+
+function readAssignments_() {
+  var ss = getSS_();
+  var tz = ss.getSpreadsheetTimeZone();
+  var sheet = helperSheet_(ASG_TAB, ASG_HEADERS, 4);
+  var n = sheet.getMaxRows() - 1;
+  var out = [];
+  if (n > 0) {
+    var vals = sheet.getRange(2, 1, n, ASG_HEADERS.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var r = vals[i];
+      if (String(r[0]).trim() === '') continue;
+      out.push({ id: String(r[0]).trim(), monastic: str_(r[1]), last: str_(r[2]), assignment: str_(r[3]),
+        start: date_(r[4], tz, 'yyyy-MM-dd'), end: date_(r[5], tz, 'yyyy-MM-dd') });
+    }
+  }
+  return { ok: true, assignments: out };
+}
+
+/** a: {id (blank when adding), monastic, last, assignment, start (optional), end (optional; blank = current)} */
+function saveAssignment_(a) {
+  return withLock_(function () {
+    a = a || {};
+    var tz = getSS_().getSpreadsheetTimeZone();
+    var monastic = text_(a.monastic, 80, 'Monastic name');
+    var last = text_(a.last, 80, 'Last name');
+    var assignment = text_(a.assignment, 120, 'Assignment');
+    if (!assignment) return { ok: false, error: 'Please enter the assignment.' };
+    var startStr = String(a.start || '').trim(), endStr = String(a.end || '').trim();
+    var start = isoDate_(startStr, tz, 'Start date', true);
+    var end = isoDate_(endStr, tz, 'End date', true);
+    if (startStr && endStr && endStr < startStr) return { ok: false, error: 'The end date cannot be before the start date.' };
+    if (!monkExists_(monastic, last)) return { ok: false, error: 'That monk is not in the directory.' };
+    var sheet = helperSheet_(ASG_TAB, ASG_HEADERS, 4);
+    var n = sheet.getMaxRows() - 1;
+    var ids = sheet.getRange(2, 1, n, 1).getValues();
+    var targetRow = 0, id = String(a.id || '').trim();
+    if (id) {
+      for (var j = 0; j < ids.length; j++) if (String(ids[j][0]).trim() === id) { targetRow = j + 2; break; }
+      if (!targetRow) return { ok: false, error: 'This entry was changed or removed by someone else. Please go back and try again.' };
+    } else {
+      id = 'g' + new Date().getTime() + Math.floor(Math.random() * 1000);
+      var lastUsed = 1;
+      for (var k = 0; k < ids.length; k++) if (String(ids[k][0]).trim() !== '') lastUsed = k + 2;
+      targetRow = lastUsed + 1;
+      if (targetRow > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 20);
+    }
+    sheet.getRange(targetRow, 1, 1, 4).setNumberFormat('@');
+    sheet.getRange(targetRow, 5, 1, 2).setNumberFormat('mmm d, yyyy');
+    sheet.getRange(targetRow, 1, 1, ASG_HEADERS.length).setValues([[id, monastic, last, assignment, start, end]]);
+    SpreadsheetApp.flush();
+    return readAssignments_();
+  });
+}
+
+function deleteAssignment_(id) {
+  return withLock_(function () {
+    id = String(id || '').trim();
+    if (!id) return { ok: false, error: 'Nothing to remove.' };
+    var sheet = helperSheet_(ASG_TAB, ASG_HEADERS, 4);
+    var n = sheet.getMaxRows() - 1;
+    var ids = sheet.getRange(2, 1, n, 1).getValues();
+    for (var j = 0; j < ids.length; j++) {
+      if (String(ids[j][0]).trim() === id) { sheet.deleteRow(j + 2); SpreadsheetApp.flush(); break; }
+    }
+    return readAssignments_();
+  });
 }

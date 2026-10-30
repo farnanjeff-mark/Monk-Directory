@@ -91,6 +91,29 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev.fd.sol .when{color:var(--purple)}
 .rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
 .rank.sol{background:var(--purplebg);color:var(--purple)}
+.phonecard{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.phonecard .tx{min-width:0;flex:1}
+.phonecard .k{font-size:14px;color:var(--muted)}
+.phonecard .v{font-size:20px;font-weight:700}
+.phonecard a.call{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;text-decoration:none}
+.phonecard button{background:none;border:0;padding:8px 6px;color:var(--accent);font-size:14px;font-weight:600}
+.seg{display:flex;gap:6px;padding:4px;background:#fff;border:2px solid var(--accent);border-radius:12px}
+.seg button{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:16px;font-weight:700;color:var(--accent)}
+.seg button.on{background:var(--accent);color:#fff}
+.prt{width:100%;border-collapse:collapse;background:#fff}
+.prt td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;font-size:16px}
+.prt td.d{white-space:nowrap;font-weight:700;width:1%}
+.prt td.o{color:var(--muted)}
+.prt tr.fe td.n{color:var(--purple)}
+.prthead{display:none}
+@media print{
+  body{background:#fff}
+  .topbar,.head,.noprint,.banner{display:none!important}
+  .page{padding:0;max-width:none;min-height:0}
+  .prthead{display:block;margin-bottom:10px}
+  .prthead h1{font-size:22px;margin:0}
+  .prt td{font-size:13px;padding:5px 6px}
+}
 .awaycard{background:#F6EFE3;border-color:#E3D5BC}
 .awaycard .badge{background:#fff;color:#7A5A1E}
 .awaycard .sub,.awaycard .ev .what,.awaycard .hint{color:#5E5442}
@@ -294,7 +317,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
 
 
   var ABS_TYPES = ['Vacation', 'Retreat', 'Other'];
-  var state = { absences: [], absOK: true, monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
+  var state = { contacts: [], assigns: [], extOK: true, printRange: 'week', absences: [], absOK: true, monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
   var memPass = '';
   var app = document.getElementById('app');
 
@@ -384,7 +407,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
     { f: 'solemn', label: 'Solemn profession anniversary', kind: 3 },
     { f: 'ord', label: 'Ordination anniversary', kind: 3 }
   ];
-  function upcoming() {
+  function upcoming(lim) {
+    if (lim === undefined) lim = 30;
     var t = today(), out = [];
     state.monks.forEach(function (m) {
       KINDS.forEach(function (k) {
@@ -394,7 +418,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
         var nxt = new Date(t.getFullYear(), p.m - 1, p.d);
         if (nxt < t) nxt = new Date(t.getFullYear() + 1, p.m - 1, p.d);
         var days = Math.round((nxt - t) / 86400000);
-        if (days > 30) return;
+        if (days > lim) return;
         var yrs = nxt.getFullYear() - p.y;
         var what;
         if (k.kind === 1) what = 'Birthday, turns ' + yrs;
@@ -439,6 +463,31 @@ form.f{display:flex;flex-direction:column;gap:14px}
       var v = cur().v;
       if (v === 'home' || v === 'away' || v === 'profile') render();
     }).catch(function () { /* offline: keep what is saved */ });
+  }
+  /* ---------- phone numbers and assignment history ---------- */
+  function lsGet(k) { try { var s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function lsPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function sameMonk(a, m) { return a.monastic.toLowerCase() === m.monastic.toLowerCase() && a.last.toLowerCase() === m.last.toLowerCase(); }
+  function phoneFor(m) { for (var i = 0; i < state.contacts.length; i++) if (sameMonk(state.contacts[i], m)) return state.contacts[i].phone; return ''; }
+  function asgFor(m) {
+    return state.assigns.filter(function (a) { return sameMonk(a, m); }).sort(function (a, b) {
+      var ac = !a.end, bc = !b.end;
+      if (ac !== bc) return ac ? -1 : 1;
+      var as = a.start || '', bs = b.start || '';
+      return as < bs ? 1 : as > bs ? -1 : 0;
+    });
+  }
+  function telOf(p) { return 'tel:' + p.replace(/[^0-9+]/g, ''); }
+  function loadExtras() {
+    api('contacts').then(function (res) {
+      if (res && res.ok) { state.contacts = res.contacts || []; state.extOK = true; lsPut('monkCon', state.contacts); }
+      else if (res && res.code !== 'auth') { state.extOK = false; }
+      if (cur().v === 'profile') render();
+    }).catch(function () {});
+    api('assignments').then(function (res) {
+      if (res && res.ok) { state.assigns = res.assignments || []; lsPut('monkAsg', state.assigns); }
+      if (cur().v === 'profile') render();
+    }).catch(function () {});
   }
   function whenText(d) { return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d + ' days'; }
 
@@ -489,6 +538,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       state.loaded = true;
       cachePut(fresh);
       loadAbsences();
+      loadExtras();
       if (done) done();
       var v = cur().v;
       if (!quiet || !wasLoaded || (changed && (v === 'home' || v === 'upcoming'))) render();
@@ -842,6 +892,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'card coming' },
         evs.length ? evs.map(function (e) { e._extra = false; return eventRow(e); }) : h('div', { class: 'sub' }, 'No special days in the next 30 days')),
       h('div', { style: 'height:12px' }),
+      h('button', { class: 'secondary', onclick: function () { go('print'); } }, 'Print a list…'),
+      h('div', { style: 'height:12px' }),
       h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of profession or ordination.'));
   }
 
@@ -893,6 +945,86 @@ form.f{display:flex;flex-direction:column;gap:14px}
     return h('div', { class: 'narrow' }, header(ex ? 'Edit absence' : 'Add an absence', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
   }
 
+  function viewPhoneForm(s) {
+    var m = byRow(s.row);
+    if (!m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
+    var fPhone = h('input', { id: 'ph', type: 'tel', value: phoneFor(m), placeholder: '(660) 555-0123', autocomplete: 'off', maxlength: 30 });
+    var errBox = h('div', { class: 'banner err', role: 'alert', style: 'display:none' });
+    var saveBtn = h('button', { class: 'primary', type: 'submit' }, 'Save');
+    function showErr(msg) { errBox.textContent = msg; errBox.style.display = msg ? 'block' : 'none'; }
+    var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
+      e.preventDefault(); showErr('');
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      api('savePhone', { contact: { monastic: m.monastic, last: m.last, phone: fPhone.value } }).then(function (res) {
+        if (res && res.code === 'auth') { state.loaded = false; render(); return; }
+        if (!res || !res.ok) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; showErr((res && res.error) || 'Could not save. The data service may need the new version.'); return; }
+        state.contacts = res.contacts || []; state.extOK = true; lsPut('monkCon', state.contacts);
+        state.stack.pop(); state.flash = 'Phone saved.'; render(true);
+      }).catch(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; showErr(NET_ERR); });
+    } },
+      errBox, field('ph', 'Phone number', fPhone),
+      h('div', { class: 'hint' }, 'Leave it empty and save to remove the number.'),
+      h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:4px' }, saveBtn, h('button', { class: 'secondary', type: 'button', onclick: back }, 'Cancel')));
+    return h('div', { class: 'narrow' }, header('Phone number', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
+  }
+
+  function viewAsgForm(s) {
+    var m = byRow(s.row);
+    if (!m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
+    var ex = null;
+    if (s.id) { state.assigns.forEach(function (a) { if (a.id === s.id) ex = a; }); if (!ex) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This entry is no longer in the list.')); }
+    var fAsg = h('input', { id: 'g-a', type: 'text', value: ex ? ex.assignment : '', placeholder: 'For example: Prior, Novice Master, Guestmaster', autocomplete: 'off', maxlength: 120 });
+    var fStart = h('input', { id: 'g-s', type: 'date', value: ex ? ex.start : '', min: '1900-01-01', max: '2100-12-31' });
+    var fEnd = h('input', { id: 'g-e', type: 'date', value: ex ? ex.end : '', min: '1900-01-01', max: '2100-12-31' });
+    var errBox = h('div', { class: 'banner err', role: 'alert', style: 'display:none' });
+    var label = ex ? 'Save changes' : 'Add this assignment';
+    var saveBtn = h('button', { class: 'primary', type: 'submit' }, label);
+    function showErr(msg) { errBox.textContent = msg; errBox.style.display = msg ? 'block' : 'none'; if (msg) errBox.scrollIntoView({ block: 'center' }); }
+    var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
+      e.preventDefault(); showErr('');
+      if (!fAsg.value.trim()) { showErr('Please enter the assignment.'); fAsg.focus(); return; }
+      if (fStart.value && fEnd.value && fEnd.value < fStart.value) { showErr('The end date cannot be before the start date.'); fEnd.focus(); return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      api('saveAssignment', { assignment: { id: ex ? ex.id : '', monastic: m.monastic, last: m.last, assignment: fAsg.value, start: fStart.value, end: fEnd.value } }).then(function (res) {
+        if (res && res.code === 'auth') { state.loaded = false; render(); return; }
+        if (!res || !res.ok) { saveBtn.disabled = false; saveBtn.textContent = label; showErr((res && res.error) || 'Could not save. The data service may need the new version.'); return; }
+        state.assigns = res.assignments || []; lsPut('monkAsg', state.assigns);
+        state.stack.pop(); state.flash = ex ? 'Saved.' : 'Assignment added.'; render(true);
+      }).catch(function () { saveBtn.disabled = false; saveBtn.textContent = label; showErr(NET_ERR); });
+    } },
+      errBox, field('g-a', 'Assignment', fAsg), field('g-s', 'Start date (optional)', fStart), field('g-e', 'End date (leave empty if he still has this job)', fEnd),
+      h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:4px' }, saveBtn, h('button', { class: 'secondary', type: 'button', onclick: back }, 'Cancel')));
+    return h('div', { class: 'narrow' }, header(ex ? 'Edit assignment' : 'Add an assignment', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
+  }
+
+  var PRINT_RANGES = [{ k: 'day', t: '1 day', n: 0, label: 'today' }, { k: 'week', t: '1 week', n: 7, label: 'the next 7 days' }, { k: 'month', t: '1 month', n: 30, label: 'the next 30 days' }];
+  function viewPrint() {
+    var r = PRINT_RANGES.filter(function (x) { return x.k === state.printRange; })[0] || PRINT_RANGES[1];
+    var t = today(), items = [];
+    upcoming(r.n).forEach(function (e) { items.push({ date: e.date, n: shortName(e.m), o: e.what + (e.jubilee ? ' (Jubilee)' : ''), fe: false }); });
+    upcomingFeasts(r.n).forEach(function (f) { items.push({ date: f.date, n: f.name, o: (f.rank === 'sol' ? 'Solemnity' : 'Feast') + (f.note ? ', ' + f.note : ''), fe: true }); });
+    items.sort(function (a, b) { return a.date - b.date || (a.fe ? 1 : 0) - (b.fe ? 1 : 0); });
+    var end = addDays(t, r.n);
+    var range = r.n === 0 ? fmtD(t) : fmtD(t) + ' to ' + fmtD(end);
+    var seg = h('div', { class: 'seg noprint' }, PRINT_RANGES.map(function (x) {
+      return h('button', { type: 'button', class: x.k === r.k ? 'on' : '', 'aria-pressed': x.k === r.k ? 'true' : 'false', onclick: function () { state.printRange = x.k; render(); } }, x.t);
+    }));
+    var table = items.length
+      ? h('table', { class: 'prt' }, items.map(function (i) {
+          return h('tr', { class: i.fe ? 'fe' : '' }, h('td', { class: 'd' }, DAYS_LONG[i.date.getDay()].slice(0, 3) + ', ' + MON[i.date.getMonth()] + ' ' + i.date.getDate()), h('td', { class: 'n' }, h('strong', null, i.n)), h('td', { class: 'o' }, i.o));
+        }))
+      : h('div', { class: 'sub' }, 'Nothing is coming up in ' + r.label + '.');
+    return h('div', { class: 'narrow' }, header('Print a list', 'UPCOMING DATES'), h('div', { style: 'height:16px' }),
+      seg, h('div', { style: 'height:12px' }),
+      h('button', { class: 'primary noprint', onclick: function () { window.print(); } }, 'Print this list'),
+      h('div', { style: 'height:16px' }),
+      h('div', { class: 'prthead' }, h('h1', null, 'Conception Abbey: upcoming dates'), h('div', { class: 'sub' }, range)),
+      table,
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'hint noprint' }, 'Includes monks’ birthdays, namesdays and anniversaries, plus solemnities and feasts, in date order.'));
+  }
+  function fmtD(d) { return MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+
   function viewFeasts() {
     var list = upcomingFeasts(365), kids = [], lastKey = '';
     list.forEach(function (f) {
@@ -902,6 +1034,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
     });
     return h('div', { class: 'narrow' }, header('Feast Days', 'NEXT 12 MONTHS'), h('div', { style: 'height:16px' }),
       h('div', { class: 'card fcard' }, kids),
+      h('div', { style: 'height:12px' }),
+      h('button', { class: 'secondary', onclick: function () { go('print'); } }, 'Print a list…'),
       h('div', { style: 'height:12px' }),
       h('div', { class: 'hint' }, 'Deep purple is a solemnity. Light purple is a feast. Dates are worked out each year, including Easter and the days that move with it.'));
   }
@@ -921,6 +1055,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { style: 'height:16px' }),
       h('button', { class: 'primary', onclick: function () { go('form', { row: m.row }); } }, icon('edit', 20), 'Edit this monk'),
       h('div', { style: 'height:16px' }),
+      phoneCard(m),
+      h('div', { style: 'height:16px' }),
       h('div', { class: 'card facts' },
         fact('Legal (baptismal) name', m.legal),
         fact('Age', m.dob ? String(yearsSince(m.dob)) : ''),
@@ -931,7 +1067,43 @@ form.f{display:flex;flex-direction:column;gap:14px}
         fact('Ordination', fmtDate(m.ord), m.ord ? plural(yearsSince(m.ord), 'year') : ''),
         fact('Current assignment', m.assign)),
       h('div', { style: 'height:16px' }),
-      absCard(m));
+      absCard(m),
+      h('div', { style: 'height:16px' }),
+      asgCard(m));
+  }
+  function phoneCard(m) {
+    var p = phoneFor(m);
+    if (!state.extOK) return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'hint' }, 'Not turned on yet. The data service needs the new version.')));
+    if (!p) return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'hint' }, 'Not set')),
+      h('button', { type: 'button', onclick: function () { go('phoneform', { row: m.row }); } }, 'Add number'));
+    return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'v' }, p)),
+      h('button', { type: 'button', onclick: function () { go('phoneform', { row: m.row }); } }, 'Edit'),
+      h('a', { class: 'call', href: telOf(p) }, 'Call'));
+  }
+  function asgRange(a) {
+    if (a.start && a.end) return fmtDate(a.start) + ' to ' + fmtDate(a.end);
+    if (a.start) return 'Since ' + fmtDate(a.start);
+    if (a.end) return 'Until ' + fmtDate(a.end);
+    return a.end ? '' : 'Current, start date not recorded';
+  }
+  function asgCard(m) {
+    var list = asgFor(m);
+    var kids = [h('div', { class: 'hd' }, h('h2', null, 'Assignment history'),
+      h('button', { class: 'linkbtn', onclick: function () { go('asgform', { row: m.row }); } }, 'Add assignment'))];
+    if (!list.length) kids.push(h('div', { class: 'hint' }, 'None recorded.'));
+    list.forEach(function (a) {
+      kids.push(h('div', { class: 'abrow' },
+        h('div', { class: 'tx' }, h('div', { class: 't1' }, a.assignment + (!a.end ? ' (current)' : '')), h('div', { class: 't2' }, asgRange(a))),
+        h('button', { type: 'button', onclick: function () { go('asgform', { row: m.row, id: a.id }); } }, 'Edit'),
+        h('button', { type: 'button', class: 'rm', onclick: function () {
+          if (!window.confirm('Remove "' + a.assignment + '" from the history?')) return;
+          api('deleteAssignment', { id: a.id }).then(function (res) {
+            if (res && res.ok) { state.assigns = res.assignments || []; lsPut('monkAsg', state.assigns); state.flash = 'Removed.'; render(true); }
+            else { state.notice = (res && res.error) || 'Could not remove it.'; render(); }
+          }).catch(function () { state.notice = NET_ERR; render(); });
+        } }, 'Remove')));
+    });
+    return h('div', { class: 'card abcard' }, kids);
   }
   function absCard(m) {
     var list = absFor(m);
@@ -1087,6 +1259,9 @@ form.f{display:flex;flex-direction:column;gap:14px}
       else if (s.v === 'upcoming') body = viewUpcoming(s);
       else if (s.v === 'feasts') body = viewFeasts(s);
       else if (s.v === 'away') body = viewAway(s);
+      else if (s.v === 'print') body = viewPrint(s);
+      else if (s.v === 'phoneform') body = viewPhoneForm(s);
+      else if (s.v === 'asgform') body = viewAsgForm(s);
       else if (s.v === 'absform') body = viewAbsForm(s);
       else if (s.v === 'profile') body = viewProfile(s);
       else if (s.v === 'form') body = viewForm(s);
@@ -1104,6 +1279,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
   if (cached && cached.length) { state.monks = cached.map(prep); state.loaded = true; }
   render();
   state.absences = absCacheGet() || [];
+  state.contacts = lsGet('monkCon') || [];
+  state.assigns = lsGet('monkAsg') || [];
   load(null, true);
 })();
 </script>
