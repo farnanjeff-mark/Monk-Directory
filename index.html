@@ -91,6 +91,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev.fd.sol .when{color:var(--purple)}
 .rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
 .rank.sol{background:var(--purplebg);color:var(--purple)}
+.dock{position:sticky;bottom:0;z-index:5;margin:auto -20px -28px;padding:10px 20px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dock button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:68px;min-width:0;padding:6px 4px;background:#fff;border:1px solid var(--border);border-radius:14px;color:var(--ink);font-size:12.5px;font-weight:600;line-height:1.15;text-align:center}
+.dock .ico{width:30px;height:30px;border-radius:9px;background:var(--tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .phonecard{padding:14px 16px;display:flex;align-items:center;gap:12px}
 .phonecard .tx{min-width:0;flex:1}
 .phonecard .k{font-size:14px;color:var(--muted)}
@@ -129,7 +132,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .abcard{padding:16px;display:flex;flex-direction:column;gap:6px}
 .abcard .hd{display:flex;align-items:baseline;justify-content:space-between}
 .tabs{display:flex;gap:6px;padding:4px;background:#fff;border:2px solid var(--accent);border-radius:12px}
-.tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:16px;font-weight:700;color:var(--accent)}
+.tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap;padding:0 4px}
 .tabbtn.on{background:var(--accent);color:#fff}
 .fcard{padding:16px;display:flex;flex-direction:column;gap:12px;background:#E9DFF5;border-color:#D3C2EA}
 .fcard .badge{background:#fff}
@@ -684,16 +687,16 @@ form.f{display:flex;flex-direction:column;gap:14px}
     var mainCard = tab === 'feasts' ? feasts : tab === 'away' ? awayCard : coming;
     mainCard.insertBefore(tabs, mainCard.firstChild);
 
-    var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
-      h('div', { class: 'ico' }, icon('chart')),
-      h('div', null, 'Community'),
-      h('span', { class: 'chev' }, icon('chev', 20)));
-    var menu = h('div', { class: 'menu' },
-      menuItem('person', 'Monk Lookup', 'One monk’s full profile', function () { go('results', { q: '' , focus: true }); }),
-      menuItem('list', 'All Monks', 'Browse the full list', function () { go('all'); }),
-      menuItem('plus', 'Add a Monk', 'Enter a new record', function () { go('form', { row: null }); }));
+    function dockBtn(ic, label, fn) {
+      return h('button', { type: 'button', onclick: fn }, h('div', { class: 'ico' }, icon(ic, 20)), h('span', null, label));
+    }
+    var dock = h('div', { class: 'dock' },
+      dockBtn('chart', 'Community', function () { go('community'); }),
+      dockBtn('person', 'Monk Lookup', function () { go('results', { q: '', focus: true }); }),
+      dockBtn('list', 'All Monks', function () { go('all'); }),
+      dockBtn('plus', 'Add a Monk', function () { go('form', { row: null }); }));
 
-    return h('div', { class: 'home' }, mainCard, h('div', { class: 'bottom' }, community, menu));
+    return h('div', { class: 'home' }, mainCard, dock);
   }
   function menuItem(ic, t, s, fn) {
     return h('button', { onclick: fn },
