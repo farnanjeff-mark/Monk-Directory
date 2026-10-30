@@ -10,7 +10,8 @@
  * the web app link can read and change it. The passcode is never in this code.
  *
  * The script writes columns A-K of the Master List tab (L-P are formulas) and
- * never deletes a Master List row. It can also rewrite the three community tabs
+ * never deletes a Master List row. It also keeps an "Absences" tab (vacations,
+ * retreats and other absences), which it creates on first use. It can also rewrite the three community tabs
  * (Community Overview, Other Communities, Community Comparison), including
  * removing rows there.
  */
@@ -47,6 +48,9 @@ function doPost(e) {
     if (req.action === 'save') return json_(saveMonk_(req.payload, req.row, req.orig));
     if (req.action === 'tab') return json_(readTab_(req.name));
     if (req.action === 'saveTab') return json_(saveTab_(req.name, req.rows, req.base));
+    if (req.action === 'absences') return json_(readAbsences_());
+    if (req.action === 'saveAbsence') return json_(saveAbsence_(req.absence));
+    if (req.action === 'deleteAbsence') return json_(deleteAbsence_(req.id));
     return json_({ ok: false, error: 'Unknown request.' });
   } catch (err) {
     return json_({ ok: false, error: friendlyError_(err) });
@@ -363,5 +367,133 @@ function validate_(p, tz) {
     return { vals: x };
   } catch (e) {
     return { error: e.message };
+  }
+}
+
+
+/* ---------------- absences ---------------- */
+
+var ABS_TAB = 'Absences';
+var ABS_HEADERS = ['ID', 'Monastic Name', 'Last Name', 'Start Date', 'Return Date', 'Type'];
+var ABS_TYPES = ['Vacation', 'Retreat', 'Other'];
+
+/** Finds the Absences tab, creating it (with headings) the first time. */
+function absSheet_() {
+  var ss = getSS_();
+  var sheet = ss.getSheetByName(ABS_TAB);
+  if (!sheet) {
+    sheet = ss.insertSheet(ABS_TAB);
+    sheet.getRange(1, 1, 1, ABS_HEADERS.length).setValues([ABS_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, 3).setNumberFormat('@');
+    sheet.getRange(2, 4, sheet.getMaxRows() - 1, 2).setNumberFormat('mmm d, yyyy');
+  }
+  return sheet;
+}
+
+/** All absences, soonest start first. Returns {ok, absences:[{id, monastic, last, start, end, type}]}. */
+function readAbsences_() {
+  var ss = getSS_();
+  var tz = ss.getSpreadsheetTimeZone();
+  var sheet = absSheet_();
+  var n = sheet.getMaxRows() - 1;
+  var out = [];
+  if (n > 0) {
+    var vals = sheet.getRange(2, 1, n, ABS_HEADERS.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var r = vals[i];
+      var start = date_(r[3], tz, 'yyyy-MM-dd'), end = date_(r[4], tz, 'yyyy-MM-dd');
+      if (String(r[0]).trim() === '' || !start || !end) continue;
+      out.push({ id: String(r[0]).trim(), monastic: str_(r[1]), last: str_(r[2]), start: start, end: end, type: str_(r[5]) });
+    }
+  }
+  out.sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
+  return { ok: true, absences: out };
+}
+
+/**
+ * Adds or edits one absence. a: {id (blank when adding), monastic, last, start, end, type}.
+ * The Return Date is the day the monk is back, so it must come after the Start Date.
+ */
+function saveAbsence_(a) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    return { ok: false, error: 'The directory is busy. Please try again in a moment.' };
+  }
+  try {
+    a = a || {};
+    var tz = getSS_().getSpreadsheetTimeZone();
+    var monastic = text_(a.monastic, 80, 'Monastic name');
+    var last = text_(a.last, 80, 'Last name');
+    var type = text_(a.type, 20, 'Type');
+    if (ABS_TYPES.indexOf(type) < 0) return { ok: false, error: 'Please choose Vacation, Retreat or Other.' };
+    var startStr = String(a.start || '').trim(), endStr = String(a.end || '').trim();
+    if (!startStr) return { ok: false, error: 'Please enter the start date.' };
+    if (!endStr) return { ok: false, error: 'Please enter the return date.' };
+    var start = isoDate_(startStr, tz, 'Start date', true);
+    var end = isoDate_(endStr, tz, 'Return date', true);
+    if (endStr <= startStr) return { ok: false, error: 'The return date must be after the start date.' };
+
+    var known = false, monks = readAll_().monks;
+    for (var i = 0; i < monks.length; i++) {
+      if (monks[i].monastic.toLowerCase() === monastic.toLowerCase() && monks[i].last.toLowerCase() === last.toLowerCase()) { known = true; break; }
+    }
+    if (!known) return { ok: false, error: 'That monk is not in the directory.' };
+
+    var sheet = absSheet_();
+    var targetRow = 0, id = String(a.id || '').trim();
+    var n = sheet.getMaxRows() - 1;
+    if (id) {
+      var ids = sheet.getRange(2, 1, n, 1).getValues();
+      for (var j = 0; j < ids.length; j++) if (String(ids[j][0]).trim() === id) { targetRow = j + 2; break; }
+      if (!targetRow) return { ok: false, error: 'This absence was changed or removed by someone else. Please go back and try again.' };
+    } else {
+      id = 'a' + new Date().getTime() + Math.floor(Math.random() * 1000);
+      var all = sheet.getRange(2, 1, n, 1).getValues();
+      var lastUsed = 1;
+      for (var k = 0; k < all.length; k++) if (String(all[k][0]).trim() !== '') lastUsed = k + 2;
+      targetRow = lastUsed + 1;
+      if (targetRow > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 20);
+    }
+    sheet.getRange(targetRow, 1, 1, 3).setNumberFormat('@');
+    sheet.getRange(targetRow, 4, 1, 2).setNumberFormat('mmm d, yyyy');
+    sheet.getRange(targetRow, 1, 1, ABS_HEADERS.length).setValues([[id, monastic, last, start, end, type]]);
+    SpreadsheetApp.flush();
+    return readAbsences_();
+  } catch (err) {
+    return { ok: false, error: friendlyError_(err) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Removes one absence (only ever a row on the Absences tab). */
+function deleteAbsence_(id) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    return { ok: false, error: 'The directory is busy. Please try again in a moment.' };
+  }
+  try {
+    id = String(id || '').trim();
+    if (!id) return { ok: false, error: 'Nothing to remove.' };
+    var sheet = absSheet_();
+    var n = sheet.getMaxRows() - 1;
+    var ids = sheet.getRange(2, 1, n, 1).getValues();
+    for (var j = 0; j < ids.length; j++) {
+      if (String(ids[j][0]).trim() === id) {
+        sheet.deleteRow(j + 2);
+        SpreadsheetApp.flush();
+        return readAbsences_();
+      }
+    }
+    return readAbsences_();   // already gone
+  } catch (err) {
+    return { ok: false, error: friendlyError_(err) };
+  } finally {
+    lock.releaseLock();
   }
 }

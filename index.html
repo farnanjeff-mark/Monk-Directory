@@ -91,6 +91,20 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .ev.fd.sol .when{color:var(--purple)}
 .rank{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--lilacbg);color:var(--lilac)}
 .rank.sol{background:var(--purplebg);color:var(--purple)}
+.awaycard{background:#F6EFE3;border-color:#E3D5BC}
+.awaycard .badge{background:#fff;color:#7A5A1E}
+.awaycard .sub,.awaycard .ev .what,.awaycard .hint{color:#5E5442}
+.ev.ab .when{color:#7A5A1E}
+.ev.ab.now .when{color:#9B2C2C}
+.abrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.abrow:first-of-type{border-top:0}
+.abrow .tx{min-width:0;flex:1}
+.abrow .t1{font-size:16px;font-weight:600}
+.abrow .t2{font-size:14px;color:var(--muted)}
+.abrow button{background:none;border:0;padding:8px 6px;color:var(--accent);font-size:14px;font-weight:600}
+.abrow button.rm{color:var(--err)}
+.abcard{padding:16px;display:flex;flex-direction:column;gap:6px}
+.abcard .hd{display:flex;align-items:baseline;justify-content:space-between}
 .tabs{display:flex;gap:6px;padding:4px;background:#fff;border:2px solid var(--accent);border-radius:12px}
 .tabbtn{flex:1;min-height:44px;border:0;border-radius:9px;background:none;font-size:16px;font-weight:700;color:var(--accent)}
 .tabbtn.on{background:var(--accent);color:#fff}
@@ -279,7 +293,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
   }
 
 
-  var state = { monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
+  var ABS_TYPES = ['Vacation', 'Retreat', 'Other'];
+  var state = { absences: [], absOK: true, monks: [], loaded: false, error: '', stack: [{ v: 'home' }], flash: '', needPass: false, passMsg: '', notice: '' };
   var memPass = '';
   var app = document.getElementById('app');
 
@@ -391,6 +406,40 @@ form.f{display:flex;flex-direction:column;gap:14px}
     out.sort(function (a, b) { return a.days - b.days || norm(a.m.monastic).localeCompare(norm(b.m.monastic)); });
     return out;
   }
+  /* ---------- absences (vacations, retreats, other) ---------- */
+  function isoOf(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dayOf(iso) { var p = parts(iso); return new Date(p.y, p.m - 1, p.d); }
+  function fmtShort(iso) { var p = parts(iso); return MON[p.m - 1] + ' ' + p.d; }
+  function absCacheGet() { try { var s = localStorage.getItem('monkAbs'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function absCachePut(l) { try { localStorage.setItem('monkAbs', JSON.stringify(l)); } catch (e) {} }
+  function monkForAbs(a) {
+    for (var i = 0; i < state.monks.length; i++) {
+      var m = state.monks[i];
+      if (m.monastic.toLowerCase() === a.monastic.toLowerCase() && m.last.toLowerCase() === a.last.toLowerCase()) return m;
+    }
+    return null;
+  }
+  /* The return date is the day he is back, so he is away while start <= today < return. */
+  function absNow(a) { var t = isoOf(today()); return a.start <= t && t < a.end; }
+  function absActive() {
+    var t = isoOf(today());
+    return state.absences.filter(function (a) { return a.end > t && monkForAbs(a); })
+      .sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : a.end < b.end ? -1 : a.end > b.end ? 1 : 0; });
+  }
+  function absFor(m) {
+    return state.absences.filter(function (a) { return monkForAbs(a) === m; })
+      .sort(function (a, b) { return a.start < b.start ? 1 : a.start > b.start ? -1 : 0; });
+  }
+  function absRange(a) { return fmtShort(a.start) + ' to ' + fmtShort(a.end); }
+  function loadAbsences(done) {
+    api('absences').then(function (res) {
+      if (res && res.ok) { state.absences = res.absences || []; state.absOK = true; absCachePut(state.absences); }
+      else if (res && res.code !== 'auth') { state.absOK = false; }
+      if (done) done();
+      var v = cur().v;
+      if (v === 'home' || v === 'away' || v === 'profile') render();
+    }).catch(function () { /* offline: keep what is saved */ });
+  }
   function whenText(d) { return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d + ' days'; }
 
   /* ---------- server calls ---------- */
@@ -439,6 +488,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       state.monks = fresh;
       state.loaded = true;
       cachePut(fresh);
+      loadAbsences();
       if (done) done();
       var v = cur().v;
       if (!quiet || !wasLoaded || (changed && (v === 'home' || v === 'upcoming'))) render();
@@ -533,6 +583,16 @@ form.f{display:flex;flex-direction:column;gap:14px}
         h('div', { class: 'what' }, f.note || '', h('span', { class: 'rank ' + f.rank, style: f.note ? '' : 'margin-left:0' }, f.rank === 'sol' ? 'Solemnity' : 'Feast'))),
       h('div', { class: 'when' }, whenText(f.days)));
   }
+  function awayRow(a) {
+    var m = monkForAbs(a), now = absNow(a);
+    var days = Math.round((dayOf(a.start) - today()) / 86400000);
+    return h('button', { class: 'ev ab' + (now ? ' now' : ''), onclick: function () { go('profile', { row: m.row }); } },
+      h('div', { class: 'badge' }, h('span', null, MON[parts(a.start).m - 1].toUpperCase()), h('span', null, parts(a.start).d)),
+      h('div', { style: 'min-width:0' },
+        h('div', { class: 'who' }, shortName(m)),
+        h('div', { class: 'what' }, a.type + ', ' + absRange(a))),
+      h('div', { class: 'when' }, now ? 'Away now' : (days === 1 ? 'Tomorrow' : 'in ' + days + ' days')));
+  }
   function byRow(row) { for (var i = 0; i < state.monks.length; i++) if (state.monks[i].row === row) return state.monks[i]; return null; }
 
   /* ---------- views ---------- */
@@ -551,19 +611,27 @@ form.f{display:flex;flex-direction:column;gap:14px}
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
     var fds = upcomingFeasts(30).slice(0, 4);
-    var onFeasts = state.homeTab === 'feasts';
+    var tab = state.homeTab === 'feasts' ? 'feasts' : state.homeTab === 'away' ? 'away' : 'monks';
+    var onFeasts = tab === 'feasts';
     function tabBtn(key, label) {
-      var on = (key === 'feasts') === onFeasts;
+      var on = key === tab;
       return h('button', { class: 'tabbtn' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
         onclick: function () { state.homeTab = key; render(); } }, label);
     }
-    var tabs = h('div', { class: 'tabs' }, tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'));
+    var tabs = h('div', { class: 'tabs' }, tabBtn('away', 'Away'), tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'));
     var feasts = h('div', { class: 'card fcard' },
       h('div', { class: 'hd' }, h('h2', null, 'Feast Days'),
         h('button', { class: 'linkbtn', onclick: function () { go('feasts'); } }, 'See all')),
       h('div', { class: 'sub' }, 'Solemnities and feasts, next 30 days'),
       fds.length ? fds.map(feastRow) : h('div', { class: 'sub' }, 'No solemnities or feasts in the next 30 days'));
-    var mainCard = onFeasts ? feasts : coming;
+    var abl = absActive().slice(0, 4);
+    var awayCard = h('div', { class: 'card coming awaycard' },
+      h('div', { class: 'hd' }, h('h2', null, 'Away'),
+        h('button', { class: 'linkbtn', onclick: function () { go('away'); } }, 'See all')),
+      h('div', { class: 'sub' }, 'Vacations, retreats and other absences'),
+      !state.absOK ? h('div', { class: 'sub' }, 'Not turned on yet. The data service needs the new version.')
+        : abl.length ? abl.map(awayRow) : h('div', { class: 'sub' }, 'No one is away, and no absences are planned'));
+    var mainCard = tab === 'feasts' ? feasts : tab === 'away' ? awayCard : coming;
     mainCard.insertBefore(tabs, mainCard.firstChild);
 
     var community = h('button', { class: 'wide', onclick: function () { go('community'); } },
@@ -777,6 +845,54 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of profession or ordination.'));
   }
 
+  function viewAway() {
+    var list = absActive();
+    var now = list.filter(absNow), later = list.filter(function (a) { return !absNow(a); });
+    var kids = [];
+    if (!state.absOK) kids.push(h('div', { class: 'banner err', role: 'status' }, 'Absences are not turned on yet. The data service needs the new version.'));
+    if (now.length) { kids.push(h('div', { class: 'month' }, 'AWAY NOW')); now.forEach(function (a) { kids.push(awayRow(a)); }); }
+    if (later.length) { kids.push(h('div', { class: 'month' }, 'COMING UP')); later.forEach(function (a) { kids.push(awayRow(a)); }); }
+    if (!list.length) kids.push(h('div', { class: 'sub' }, 'No one is away, and no absences are planned.'));
+    return h('div', { class: 'narrow' }, header('Away', 'ABSENCES'), h('div', { style: 'height:16px' }),
+      h('div', { class: 'card coming awaycard' }, kids),
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'hint' }, 'Listed by start date. To add or change an absence, open the monk’s profile and use Absences at the bottom. A monk is shown away until the day before his return date.'));
+  }
+
+  function viewAbsForm(s) {
+    var m = byRow(s.row);
+    if (!m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
+    var ex = null;
+    if (s.id) { state.absences.forEach(function (a) { if (a.id === s.id) ex = a; }); if (!ex) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This absence is no longer in the list.')); }
+    var fType = selectEl('a-type', ABS_TYPES, ex ? ex.type : '', 'Choose a type');
+    var fStart = h('input', { id: 'a-start', type: 'date', value: ex ? ex.start : '', min: '2000-01-01', max: '2100-12-31' });
+    var fEnd = h('input', { id: 'a-end', type: 'date', value: ex ? ex.end : '', min: '2000-01-01', max: '2100-12-31' });
+    var errBox = h('div', { class: 'banner err', role: 'alert', style: 'display:none' });
+    var saveBtn = h('button', { class: 'primary', type: 'submit' }, ex ? 'Save changes' : 'Add this absence');
+    function showErr(msg) { errBox.textContent = msg; errBox.style.display = msg ? 'block' : 'none'; if (msg) errBox.scrollIntoView({ block: 'center' }); }
+    var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
+      e.preventDefault(); showErr('');
+      if (!fType.value) { showErr('Please choose a type.'); fType.focus(); return; }
+      if (!fStart.value) { showErr('Please enter the start date.'); fStart.focus(); return; }
+      if (!fEnd.value) { showErr('Please enter the return date.'); fEnd.focus(); return; }
+      if (fEnd.value <= fStart.value) { showErr('The return date must be after the start date.'); fEnd.focus(); return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      api('saveAbsence', { absence: { id: ex ? ex.id : '', monastic: m.monastic, last: m.last, start: fStart.value, end: fEnd.value, type: fType.value } }).then(function (res) {
+        if (res && res.code === 'auth') { state.loaded = false; render(); return; }
+        if (!res || !res.ok) { saveBtn.disabled = false; saveBtn.textContent = ex ? 'Save changes' : 'Add this absence'; showErr((res && res.error) || 'Could not save. The data service may need the new version.'); return; }
+        state.absences = res.absences || []; state.absOK = true; absCachePut(state.absences);
+        state.stack.pop(); state.flash = ex ? 'Absence saved.' : 'Absence added.'; render(true);
+      }).catch(function () { saveBtn.disabled = false; saveBtn.textContent = ex ? 'Save changes' : 'Add this absence'; showErr(NET_ERR); });
+    } },
+      errBox,
+      field('a-type', 'Type', fType),
+      field('a-start', 'Start date', fStart),
+      field('a-end', 'Return date (the day he is back)', fEnd),
+      h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:4px' },
+        saveBtn, h('button', { class: 'secondary', type: 'button', onclick: back }, 'Cancel')));
+    return h('div', { class: 'narrow' }, header(ex ? 'Edit absence' : 'Add an absence', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
+  }
+
   function viewFeasts() {
     var list = upcomingFeasts(365), kids = [], lastKey = '';
     list.forEach(function (f) {
@@ -813,7 +929,30 @@ form.f{display:flex;flex-direction:column;gap:14px}
         fact('First profession', fmtDate(m.first), m.first ? plural(yearsSince(m.first), 'year') : ''),
         fact('Solemn profession', fmtDate(m.solemn), m.solemn ? plural(yearsSince(m.solemn), 'year') : ''),
         fact('Ordination', fmtDate(m.ord), m.ord ? plural(yearsSince(m.ord), 'year') : ''),
-        fact('Current assignment', m.assign)));
+        fact('Current assignment', m.assign)),
+      h('div', { style: 'height:16px' }),
+      absCard(m));
+  }
+  function absCard(m) {
+    var list = absFor(m);
+    var kids = [h('div', { class: 'hd' }, h('h2', null, 'Absences'),
+      h('button', { class: 'linkbtn', onclick: function () { go('absform', { row: m.row }); } }, 'Add absence'))];
+    if (!state.absOK) kids.push(h('div', { class: 'hint' }, 'Absences are not turned on yet. The data service needs the new version.'));
+    else if (!list.length) kids.push(h('div', { class: 'hint' }, 'None recorded.'));
+    list.forEach(function (a) {
+      var now = absNow(a);
+      kids.push(h('div', { class: 'abrow' },
+        h('div', { class: 'tx' }, h('div', { class: 't1' }, a.type + (now ? ' (away now)' : '')), h('div', { class: 't2' }, 'Leaves ' + fmtDate(a.start) + ', back ' + fmtDate(a.end))),
+        h('button', { type: 'button', onclick: function () { go('absform', { row: m.row, id: a.id }); } }, 'Edit'),
+        h('button', { type: 'button', class: 'rm', onclick: function () {
+          if (!window.confirm('Remove this ' + a.type.toLowerCase() + ' (' + absRange(a) + ')?')) return;
+          api('deleteAbsence', { id: a.id }).then(function (res) {
+            if (res && res.ok) { state.absences = res.absences || []; absCachePut(state.absences); state.flash = 'Absence removed.'; render(true); }
+            else { state.notice = (res && res.error) || 'Could not remove it.'; render(); }
+          }).catch(function () { state.notice = NET_ERR; render(); });
+        } }, 'Remove')));
+    });
+    return h('div', { class: 'card abcard' }, kids);
   }
 
   function field(id, labelText, control) {
@@ -947,6 +1086,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
       else if (s.v === 'all') body = viewAll(s);
       else if (s.v === 'upcoming') body = viewUpcoming(s);
       else if (s.v === 'feasts') body = viewFeasts(s);
+      else if (s.v === 'away') body = viewAway(s);
+      else if (s.v === 'absform') body = viewAbsForm(s);
       else if (s.v === 'profile') body = viewProfile(s);
       else if (s.v === 'form') body = viewForm(s);
       else if (s.v === 'community') body = viewCommunity();
@@ -962,6 +1103,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
   var cached = configured() ? cacheGet() : null;
   if (cached && cached.length) { state.monks = cached.map(prep); state.loaded = true; }
   render();
+  state.absences = absCacheGet() || [];
   load(null, true);
 })();
 </script>
