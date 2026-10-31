@@ -487,6 +487,13 @@ form.f{display:flex;flex-direction:column;gap:14px}
       return as < bs ? 1 : as > bs ? -1 : 0;
     });
   }
+  function fmtPhone(p) {
+    var t = String(p || '').trim();
+    if (/[xX#]|^\+(?!1)/.test(t)) return t;
+    var d = t.replace(/\D/g, '');
+    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+    return d.length === 10 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : t;
+  }
   function telOf(p) { return 'tel:' + p.replace(/[^0-9+]/g, ''); }
   function loadExtras() {
     api('contacts').then(function (res) {
@@ -980,7 +987,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
       e.preventDefault(); showErr('');
       saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
-      api('savePhone', { contact: { monastic: m.monastic, last: m.last, phone: fPhone.value, office: fOffice.value } }).then(function (res) {
+      api('savePhone', { contact: { monastic: m.monastic, last: m.last, phone: fmtPhone(fPhone.value), office: fmtPhone(fOffice.value) } }).then(function (res) {
         if (res && res.code === 'auth') { state.loaded = false; render(); return; }
         if (!res || !res.ok) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; showErr((res && res.error) || 'Could not save. The data service may need the new version.'); return; }
         state.contacts = res.contacts || []; state.extOK = true; lsPut('monkCon', state.contacts);
@@ -1099,7 +1106,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     if (!state.extOK) return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'hint' }, 'Not turned on yet. The data service needs the new version.')));
     function line(label, num) {
       return h('div', { class: 'pline' },
-        h('div', { class: 'tx' }, h('div', { class: 'k' }, label), num ? h('div', { class: 'v' }, num) : h('div', { class: 'hint' }, 'Not set')),
+        h('div', { class: 'tx' }, h('div', { class: 'k' }, label), num ? h('div', { class: 'v' }, fmtPhone(num)) : h('div', { class: 'hint' }, 'Not set')),
         num ? h('a', { class: 'call', href: telOf(num) }, 'Call') : null,
         num ? h('a', { class: 'call alt', href: 'sms:' + num.replace(/[^0-9+]/g, '') }, 'Text') : null);
     }
