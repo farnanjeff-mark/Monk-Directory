@@ -345,6 +345,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
   }
   var ICONS = {
+    house: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
     person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
@@ -1235,7 +1236,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
     page.appendChild(h('div', { class: 'topbar' },
       h('div', { class: 'brand' },
         h('div', { class: 'logo' }, icon('cross')),
-        h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory')))));
+        h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory'))),
+      onHome ? null : h('button', { class: 'iconbtn', 'aria-label': 'Home', title: 'Home', onclick: function () { home(); } }, icon('house'))));
 
     if (!configured()) {
       page.appendChild(h('div', { class: 'banner err', role: 'alert' }, 'This page is not connected to the directory yet. The link in config.js still needs to be filled in.'));
