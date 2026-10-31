@@ -508,7 +508,7 @@ function deleteAbsence_(id) {
 /* ---------------- contacts (phone numbers) and assignment history ---------------- */
 
 var CON_TAB = 'Contacts';
-var CON_HEADERS = ['Monastic Name', 'Last Name', 'Phone'];
+var CON_HEADERS = ['Monastic Name', 'Last Name', 'Phone', 'Office Phone'];
 var ASG_TAB = 'Assignment History';
 var ASG_HEADERS = ['ID', 'Monastic Name', 'Last Name', 'Assignment', 'Start Date', 'End Date'];
 
@@ -550,41 +550,52 @@ function withLock_(fn) {
   }
 }
 
-/* phone numbers */
+/* phone numbers (cell in column C, office in column D) */
+
+function conSheet_() {
+  var sheet = helperSheet_(CON_TAB, CON_HEADERS, 4);
+  if (String(sheet.getRange(1, 4).getValue() || '') === '') {
+    sheet.getRange(1, 4).setValue('Office Phone').setFontWeight('bold');
+    sheet.getRange(2, 4, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+  }
+  return sheet;
+}
 
 function readContacts_() {
-  var sheet = helperSheet_(CON_TAB, CON_HEADERS, 3);
+  var sheet = conSheet_();
   var n = sheet.getMaxRows() - 1;
   var out = [];
   if (n > 0) {
-    var vals = sheet.getRange(2, 1, n, 3).getValues();
+    var vals = sheet.getRange(2, 1, n, 4).getValues();
     for (var i = 0; i < vals.length; i++) {
-      var phone = str_(vals[i][2]);
-      if (!phone) continue;
-      out.push({ monastic: str_(vals[i][0]), last: str_(vals[i][1]), phone: phone });
+      var phone = str_(vals[i][2]), office = str_(vals[i][3]);
+      if (!phone && !office) continue;
+      out.push({ monastic: str_(vals[i][0]), last: str_(vals[i][1]), phone: phone, office: office });
     }
   }
   return { ok: true, contacts: out };
 }
 
-/** Adds, changes or (when phone is blank) removes one monk's phone number. */
+/** Adds, changes or (when both numbers are blank) removes one monk's phone numbers. */
 function savePhone_(c) {
   return withLock_(function () {
     c = c || {};
     var monastic = text_(c.monastic, 80, 'Monastic name');
     var last = text_(c.last, 80, 'Last name');
     var phone = text_(c.phone, 30, 'Phone');
-    if (phone && !/^[0-9+().\-\sxX#]{5,30}$/.test(phone)) return { ok: false, error: 'A phone number can only have digits, spaces and + - ( ) . x.' };
+    var office = text_(c.office, 30, 'Office phone');
+    var re = /^[0-9+().\-\sxX#]{5,30}$/;
+    if ((phone && !re.test(phone)) || (office && !re.test(office))) return { ok: false, error: 'A phone number can only have digits, spaces and + - ( ) . x.' };
     if (!monkExists_(monastic, last)) return { ok: false, error: 'That monk is not in the directory.' };
-    var sheet = helperSheet_(CON_TAB, CON_HEADERS, 3);
+    var sheet = conSheet_();
     var n = sheet.getMaxRows() - 1;
-    var vals = sheet.getRange(2, 1, n, 3).getValues();
+    var vals = sheet.getRange(2, 1, n, 4).getValues();
     var row = 0, lastUsed = 1;
     for (var i = 0; i < vals.length; i++) {
       if (str_(vals[i][0]) !== '' || str_(vals[i][1]) !== '') lastUsed = i + 2;
       if (!row && str_(vals[i][0]).toLowerCase() === monastic.toLowerCase() && str_(vals[i][1]).toLowerCase() === last.toLowerCase()) row = i + 2;
     }
-    if (!phone) {
+    if (!phone && !office) {
       if (row) { sheet.deleteRow(row); SpreadsheetApp.flush(); }
       return readContacts_();
     }
@@ -592,8 +603,8 @@ function savePhone_(c) {
       row = lastUsed + 1;
       if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 20);
     }
-    sheet.getRange(row, 1, 1, 3).setNumberFormat('@');
-    sheet.getRange(row, 1, 1, 3).setValues([[monastic, last, phone]]);
+    sheet.getRange(row, 1, 1, 4).setNumberFormat('@');
+    sheet.getRange(row, 1, 1, 4).setValues([[monastic, last, phone, office]]);
     SpreadsheetApp.flush();
     return readContacts_();
   });

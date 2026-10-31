@@ -94,7 +94,10 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #7FB3A0;outline-
 .dock{position:sticky;bottom:0;z-index:5;margin:auto -20px -28px;padding:10px 20px calc(10px + env(safe-area-inset-bottom));background:var(--accent);border-top:0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .dock button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:68px;min-width:0;padding:6px 4px;background:#fff;border:0;border-radius:14px;color:var(--ink);font-size:12.5px;font-weight:600;line-height:1.15;text-align:center}
 .dock .ico{width:30px;height:30px;border-radius:9px;background:var(--tint);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
-.phonecard{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.phonecard{padding:14px 16px;display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.pline{display:flex;align-items:center;gap:8px}
+.phonecard a.call.alt{background:#fff;color:var(--accent);border:2px solid var(--accent)}
+.phonecard>button{align-self:flex-start}
 .phonecard .tx{min-width:0;flex:1}
 .phonecard .k{font-size:14px;color:var(--muted)}
 .phonecard .v{font-size:20px;font-weight:700}
@@ -470,7 +473,8 @@ form.f{display:flex;flex-direction:column;gap:14px}
   function lsGet(k) { try { var s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
   function lsPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   function sameMonk(a, m) { return a.monastic.toLowerCase() === m.monastic.toLowerCase() && a.last.toLowerCase() === m.last.toLowerCase(); }
-  function phoneFor(m) { for (var i = 0; i < state.contacts.length; i++) if (sameMonk(state.contacts[i], m)) return state.contacts[i].phone; return ''; }
+  function phoneFor(m) { for (var i = 0; i < state.contacts.length; i++) if (sameMonk(state.contacts[i], m)) return state.contacts[i].phone || ''; return ''; }
+  function officeFor(m) { for (var i = 0; i < state.contacts.length; i++) if (sameMonk(state.contacts[i], m)) return state.contacts[i].office || ''; return ''; }
   function asgFor(m) {
     return state.assigns.filter(function (a) { return sameMonk(a, m); }).sort(function (a, b) {
       var ac = !a.end, bc = !b.end;
@@ -965,23 +969,24 @@ form.f{display:flex;flex-direction:column;gap:14px}
     var m = byRow(s.row);
     if (!m) return h('div', { class: 'narrow' }, header('Not found'), h('div', { class: 'center' }, 'This record is no longer in the list.'));
     var fPhone = h('input', { id: 'ph', type: 'tel', value: phoneFor(m), placeholder: '(660) 555-0123', autocomplete: 'off', maxlength: 30 });
+    var fOffice = h('input', { id: 'po', type: 'tel', value: officeFor(m), placeholder: '(660) 555-0100', autocomplete: 'off', maxlength: 30 });
     var errBox = h('div', { class: 'banner err', role: 'alert', style: 'display:none' });
     var saveBtn = h('button', { class: 'primary', type: 'submit' }, 'Save');
     function showErr(msg) { errBox.textContent = msg; errBox.style.display = msg ? 'block' : 'none'; }
     var form = h('form', { class: 'f', novalidate: true, onsubmit: function (e) {
       e.preventDefault(); showErr('');
       saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
-      api('savePhone', { contact: { monastic: m.monastic, last: m.last, phone: fPhone.value } }).then(function (res) {
+      api('savePhone', { contact: { monastic: m.monastic, last: m.last, phone: fPhone.value, office: fOffice.value } }).then(function (res) {
         if (res && res.code === 'auth') { state.loaded = false; render(); return; }
         if (!res || !res.ok) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; showErr((res && res.error) || 'Could not save. The data service may need the new version.'); return; }
         state.contacts = res.contacts || []; state.extOK = true; lsPut('monkCon', state.contacts);
         state.stack.pop(); state.flash = 'Phone saved.'; render(true);
       }).catch(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; showErr(NET_ERR); });
     } },
-      errBox, field('ph', 'Phone number', fPhone),
-      h('div', { class: 'hint' }, 'Leave it empty and save to remove the number.'),
+      errBox, field('ph', 'Cell phone', fPhone), field('po', 'Office phone', fOffice),
+      h('div', { class: 'hint' }, 'Leave a box empty and save to remove that number.'),
       h('div', { style: 'display:flex;flex-direction:column;gap:10px;margin-top:4px' }, saveBtn, h('button', { class: 'secondary', type: 'button', onclick: back }, 'Cancel')));
-    return h('div', { class: 'narrow' }, header('Phone number', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
+    return h('div', { class: 'narrow' }, header('Phone numbers', fullName(m).toUpperCase()), h('div', { style: 'height:16px' }), form);
   }
 
   function viewAsgForm(s) {
@@ -1086,13 +1091,17 @@ form.f{display:flex;flex-direction:column;gap:14px}
       asgCard(m));
   }
   function phoneCard(m) {
-    var p = phoneFor(m);
+    var p = phoneFor(m), o = officeFor(m);
     if (!state.extOK) return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'hint' }, 'Not turned on yet. The data service needs the new version.')));
-    if (!p) return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'hint' }, 'Not set')),
-      h('button', { type: 'button', onclick: function () { go('phoneform', { row: m.row }); } }, 'Add number'));
-    return h('div', { class: 'card phonecard' }, h('div', { class: 'tx' }, h('div', { class: 'k' }, 'Phone'), h('div', { class: 'v' }, p)),
-      h('button', { type: 'button', onclick: function () { go('phoneform', { row: m.row }); } }, 'Edit'),
-      h('a', { class: 'call', href: telOf(p) }, 'Call'));
+    function line(label, num) {
+      return h('div', { class: 'pline' },
+        h('div', { class: 'tx' }, h('div', { class: 'k' }, label), num ? h('div', { class: 'v' }, num) : h('div', { class: 'hint' }, 'Not set')),
+        num ? h('a', { class: 'call', href: telOf(num) }, 'Call') : null,
+        num ? h('a', { class: 'call alt', href: 'sms:' + num.replace(/[^0-9+]/g, '') }, 'Text') : null);
+    }
+    return h('div', { class: 'card phonecard' },
+      line('Cell', p), line('Office', o),
+      h('button', { type: 'button', onclick: function () { go('phoneform', { row: m.row }); } }, p || o ? 'Edit numbers' : 'Add numbers'));
   }
   function asgRange(a) {
     if (a.start && a.end) return fmtDate(a.start) + ' to ' + fmtDate(a.end);
