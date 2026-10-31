@@ -663,7 +663,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
     var fds = upcomingFeasts(30).slice(0, 4);
-    var tab = (state.homeTab === 'feasts' || state.homeTab === 'away' || state.homeTab === 'all') ? state.homeTab : 'monks';
+    var tab = (state.homeTab === 'feasts' || state.homeTab === 'away' || state.homeTab === 'monks') ? state.homeTab : 'all';
     var onFeasts = tab === 'feasts';
     function tabBtn(key, label) {
       var on = key === tab;
