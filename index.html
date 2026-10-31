@@ -16,6 +16,7 @@
 :root{--purple:#5B2D91;--purplebg:#E9DFF5;--lilac:#7E57B5;--lilacbg:#F3EEF9;--bg:#F4F5F2;--ink:#1B2430;--accent:#2D5A4A;--muted:#55606E;--border:#D5D9D3;--tint:#E6EFEB;--field:#9AA5A0;--faint:#6B7684;--err:#9B2C2C;--errbg:#FBEAEA}
 *{box-sizing:border-box}
 html,body{margin:0}
+body.onhome{background:#E2E5DE}
 body{background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
 button{font-family:inherit;cursor:pointer}
 .page{max-width:560px;margin:0 auto;padding:24px 20px 28px;display:flex;flex-direction:column;gap:18px;min-height:100vh;min-height:100dvh}
@@ -1259,6 +1260,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
     var page = h('div', { class: 'page' });
     var t = today();
     var onHome = cur().v === 'home';
+    document.body.classList.toggle('onhome', onHome);
     page.appendChild(h('div', { class: 'topbar' },
       h('div', { class: 'brand' },
         h('div', { class: 'logo' }, icon('cross')),
