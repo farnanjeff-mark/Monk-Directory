@@ -406,8 +406,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
   var KINDS = [
     { f: 'dob', label: 'Birthday', kind: 1 },
     { f: 'namesday', label: 'Namesday', kind: 2 },
-    { f: 'first', label: 'First profession anniversary', kind: 3 },
-    { f: 'solemn', label: 'Solemn profession anniversary', kind: 3 },
     { f: 'ord', label: 'Ordination anniversary', kind: 3 }
   ];
   function upcoming(lim) {
@@ -897,7 +895,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { style: 'height:12px' }),
       h('button', { class: 'secondary', onclick: function () { go('print'); } }, 'Print a list…'),
       h('div', { style: 'height:12px' }),
-      h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of profession or ordination.'));
+      h('div', { class: 'hint' }, 'Jubilees are marked at 25, 50, 60 and 70 years of ordination.'));
   }
 
   function viewAway() {
@@ -1065,8 +1063,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
         fact('Age', m.dob ? String(yearsSince(m.dob)) : ''),
         fact('Date of birth', fmtDate(m.dob)),
         fact('Namesday', fmtMD(m.namesday)),
-        fact('First profession', fmtDate(m.first), m.first ? plural(yearsSince(m.first), 'year') : ''),
-        fact('Solemn profession', fmtDate(m.solemn), m.solemn ? plural(yearsSince(m.solemn), 'year') : ''),
         fact('Ordination', fmtDate(m.ord), m.ord ? plural(yearsSince(m.ord), 'year') : ''),
         fact('Current assignment', m.assign)),
       h('div', { style: 'height:16px' }),
@@ -1163,8 +1159,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
     var fDob = h('input', { id: 'f-dob', type: 'date', value: m.dob, min: '1700-01-01', max: maxDob });
     var fNsM = selectEl('f-nsm', months, nsM, 'Month');
     var fNsD = selectEl('f-nsd', days, nsD, 'Day');
-    var fFirst = h('input', { id: 'f-first', type: 'date', value: m.first, min: '1700-01-01', max: '2100-12-31' });
-    var fSolemn = h('input', { id: 'f-solemn', type: 'date', value: m.solemn, min: '1700-01-01', max: '2100-12-31' });
     var fOrd = h('input', { id: 'f-ord', type: 'date', value: m.ord, min: '1700-01-01', max: '2100-12-31' });
     var fAssign = h('input', { id: 'f-assign', type: 'text', value: m.assign, placeholder: 'Leave blank if none', autocomplete: 'off', maxlength: 200 });
 
@@ -1181,7 +1175,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       if ((fNsM.value && !fNsD.value) || (!fNsM.value && fNsD.value)) { showErr('For the namesday, choose both a month and a day, or leave both empty.'); return; }
       var ns = fNsM.value ? fNsM.value + '-' + ('0' + fNsD.value).slice(-2) : '';
       var payload = { title: fTitle.value, monastic: fMon.value, last: fLast.value, legal: fLegal.value, status: fStatus.value,
-        dob: fDob.value, namesday: ns, first: fFirst.value, solemn: fSolemn.value, ord: fOrd.value, assign: fAssign.value };
+        dob: fDob.value, namesday: ns, first: m.first || '', solemn: m.solemn || '', ord: fOrd.value, assign: fAssign.value };
       saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
       var resetBtn = function () { saveBtn.disabled = false; saveBtn.textContent = editing ? 'Save changes' : 'Add this monk'; };
       api('save', { payload: payload, row: s.row || null, orig: orig }).then(function (res) {
@@ -1205,8 +1199,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
       field('f-status', 'Status', fStatus),
       field('f-dob', 'Date of birth', fDob),
       h('div', null, h('label', { for: 'f-nsm' }, 'Namesday (month and day)'), h('div', { class: 'two' }, fNsM, fNsD)),
-      field('f-first', 'First profession', fFirst),
-      field('f-solemn', 'Solemn profession', fSolemn),
       field('f-ord', 'Ordination', fOrd),
       field('f-assign', 'Current assignment', fAssign),
       h('div', { class: 'hint' }, 'Leave a date empty if it isn’t known. Age and years are worked out automatically.'),
