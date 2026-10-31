@@ -663,14 +663,14 @@ form.f{display:flex;flex-direction:column;gap:14px}
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
     var fds = upcomingFeasts(30).slice(0, 4);
-    var tab = state.homeTab === 'feasts' ? 'feasts' : (state.homeTab === 'away' ? 'away' : 'monks');
+    var tab = (state.homeTab === 'feasts' || state.homeTab === 'away' || state.homeTab === 'all') ? state.homeTab : 'monks';
     var onFeasts = tab === 'feasts';
     function tabBtn(key, label) {
       var on = key === tab;
       return h('button', { class: 'tabbtn' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
         onclick: function () { state.homeTab = key; render(); } }, label);
     }
-    var tabs = h('div', { class: 'tabs' }, tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'), tabBtn('away', 'Away'));
+    var tabs = h('div', { class: 'tabs' }, tabBtn('all', 'All'), tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'), tabBtn('away', 'Away'));
     var feasts = h('div', { class: 'card fcard' },
       h('div', { class: 'hd' }, h('h2', null, 'Feast Days'),
         h('button', { class: 'linkbtn', onclick: function () { go('feasts'); } }, 'See all')),
@@ -683,7 +683,21 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'sub' }, 'Vacations, retreats and other absences'),
       !state.absOK ? h('div', { class: 'sub' }, 'Not turned on yet. The data service needs the new version.')
         : abl.length ? abl.map(awayRow) : h('div', { class: 'sub' }, 'No one is away, and no absences are planned'));
-    var mainCard = tab === 'feasts' ? feasts : (tab === 'away' ? awayCard : coming);
+    var mix = [];
+    evs.forEach(function (e) { if (e.days > 0) mix.push({ d: e.days, n: 1, row: eventRow(e) }); });
+    todays.forEach(function (e) { mix.push({ d: 0, n: 1, row: eventRow(e) }); });
+    upcomingFeasts(30).forEach(function (f) { mix.push({ d: f.days, n: 0, row: feastRow(f) }); });
+    absActive().forEach(function (a) {
+      var ad = Math.round((dayOf(a.start) - t) / 86400000);
+      if (ad <= 30) mix.push({ d: Math.max(0, ad), n: 2, row: awayRow(a) });
+    });
+    mix.sort(function (a, b) { return a.d - b.d || a.n - b.n; });
+    var allCard = h('div', { class: 'card coming' },
+      h('div', { class: 'hd' }, h('h2', null, 'Everything coming up'),
+        h('button', { class: 'linkbtn', onclick: function () { go('upcoming'); } }, 'See all')),
+      h('div', { class: 'sub' }, 'Birthdays, feast days and absences, next 30 days'),
+      mix.length ? mix.slice(0, 8).map(function (x) { return x.row; }) : h('div', { class: 'sub' }, 'Nothing in the next 30 days'));
+    var mainCard = tab === 'all' ? allCard : tab === 'feasts' ? feasts : (tab === 'away' ? awayCard : coming);
     mainCard.insertBefore(tabs, mainCard.firstChild);
 
     function dockBtn(ic, label, fn) {
