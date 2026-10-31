@@ -662,14 +662,14 @@ form.f{display:flex;flex-direction:column;gap:14px}
       shown.length ? shown.map(eventRow) : h('div', { class: 'sub' }, 'No special days in the next 30 days'));
 
     var fds = upcomingFeasts(30).slice(0, 4);
-    var tab = state.homeTab === 'feasts' ? 'feasts' : 'monks';
+    var tab = state.homeTab === 'feasts' ? 'feasts' : (state.homeTab === 'away' ? 'away' : 'monks');
     var onFeasts = tab === 'feasts';
     function tabBtn(key, label) {
       var on = key === tab;
       return h('button', { class: 'tabbtn' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
         onclick: function () { state.homeTab = key; render(); } }, label);
     }
-    var tabs = h('div', { class: 'tabs' }, tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'));
+    var tabs = h('div', { class: 'tabs' }, tabBtn('monks', 'Monks'), tabBtn('feasts', 'Feast Days'), tabBtn('away', 'Away'));
     var feasts = h('div', { class: 'card fcard' },
       h('div', { class: 'hd' }, h('h2', null, 'Feast Days'),
         h('button', { class: 'linkbtn', onclick: function () { go('feasts'); } }, 'See all')),
@@ -682,7 +682,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'sub' }, 'Vacations, retreats and other absences'),
       !state.absOK ? h('div', { class: 'sub' }, 'Not turned on yet. The data service needs the new version.')
         : abl.length ? abl.map(awayRow) : h('div', { class: 'sub' }, 'No one is away, and no absences are planned'));
-    var mainCard = tab === 'feasts' ? feasts : coming;
+    var mainCard = tab === 'feasts' ? feasts : (tab === 'away' ? awayCard : coming);
     mainCard.insertBefore(tabs, mainCard.firstChild);
 
     function dockBtn(ic, label, fn) {
@@ -694,7 +694,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       dockBtn('list', 'All Monks', function () { go('all'); }),
       dockBtn('plus', 'Add a Monk', function () { go('form', { row: null }); }));
 
-    return h('div', { class: 'home' }, mainCard, awayCard, dock);
+    return h('div', { class: 'home' }, mainCard, dock);
   }
   function menuItem(ic, t, s, fn) {
     return h('button', { onclick: fn },
