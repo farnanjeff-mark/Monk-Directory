@@ -931,16 +931,41 @@ form.f{display:flex;flex-direction:column;gap:14px}
   function viewAll(s) {
     var listEl = h('div', { class: 'list' });
     var countEl = h('div', { class: 'count' });
+    var sortKey = state.allSort || 'az';
+    var segEl = h('div', { class: 'seg', style: 'margin-bottom:14px' });
+    function sortList() {
+      var l = sortedMonks();
+      if (sortKey === 'prof') {
+        l.sort(function (a, b) { var x = a.first || '9999', y = b.first || '9999'; return x < y ? -1 : x > y ? 1 : 0; });
+      } else if (sortKey === 'age') {
+        l.sort(function (a, b) { var x = a.dob || '9999', y = b.dob || '9999'; return x < y ? -1 : x > y ? 1 : 0; });
+      }
+      return l;
+    }
+    function drawSeg() {
+      segEl.innerHTML = '';
+      [['az', 'A–Z'], ['prof', 'Profession'], ['age', 'Age']].forEach(function (o) {
+        segEl.appendChild(h('button', { type: 'button', class: sortKey === o[0] ? 'on' : '', 'aria-pressed': sortKey === o[0] ? 'true' : 'false',
+          onclick: function () { sortKey = o[0]; state.allSort = o[0]; drawSeg(); fill(inp.value); } }, o[1]));
+      });
+    }
     function fill(q) {
       listEl.innerHTML = '';
-      var r = search(q || '', sortedMonks());
-      r.forEach(function (m) { listEl.appendChild(monkRow(m)); });
+      var r = search(q || '', sortList());
+      r.forEach(function (m) {
+        var row = monkRow(m);
+        if (sortKey === 'prof') {
+          var meta = row.querySelector('.meta');
+          if (meta) meta.textContent = [m.status, m.first ? 'professed ' + fmtDate(m.first) : 'profession date not set'].join(', ');
+        }
+        listEl.appendChild(row);
+      });
       countEl.textContent = r.length + (q && q.trim() ? ' found' : ' monks');
     }
     var inp = h('input', { id: 'qa', type: 'search', placeholder: 'Filter the list', autocomplete: 'off', oninput: function () { fill(inp.value); } });
-    fill('');
+    drawSeg(); fill('');
     return h('div', { class: 'narrow' }, header('All Monks'), h('div', { style: 'height:16px' }),
-      h('label', { for: 'qa' }, 'Filter'), inp, h('div', { style: 'height:14px' }), countEl,
+      segEl, h('label', { for: 'qa' }, 'Filter'), inp, h('div', { style: 'height:14px' }), countEl,
       h('div', { style: 'height:10px' }), listEl);
   }
 
