@@ -381,7 +381,7 @@ function validate_(p, tz) {
 
 var ABS_TAB = 'Absences';
 var ABS_HEADERS = ['ID', 'Monastic Name', 'Last Name', 'Start Date', 'Return Date', 'Type'];
-var ABS_TYPES = ['Vacation', 'Retreat', 'Other'];
+var ABS_TYPES = ['Vacation', 'Retreat', 'Work', 'Mission', 'Other'];
 
 /** Finds the Absences tab, creating it (with headings) the first time. */
 function absSheet_() {
@@ -434,7 +434,7 @@ function saveAbsence_(a) {
     var monastic = text_(a.monastic, 80, 'Monastic name');
     var last = text_(a.last, 80, 'Last name');
     var type = text_(a.type, 20, 'Type');
-    if (ABS_TYPES.indexOf(type) < 0) return { ok: false, error: 'Please choose Vacation, Retreat or Other.' };
+    if (ABS_TYPES.indexOf(type) < 0) return { ok: false, error: 'Please choose Vacation, Retreat, Work, Mission or Other.' };
     var startStr = String(a.start || '').trim(), endStr = String(a.end || '').trim();
     if (!startStr) return { ok: false, error: 'Please enter the start date.' };
     if (!endStr) return { ok: false, error: 'Please enter the return date.' };
