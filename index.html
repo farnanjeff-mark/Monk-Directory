@@ -795,7 +795,19 @@ form.f{display:flex;flex-direction:column;gap:14px}
     } else {
       var head = rows[0] || [];
       var list = h('div', { class: 'list' });
-      rows.slice(1).forEach(function (r) {
+      var body = rows.slice(1);
+      if (name === 'Community Comparison') {
+        var ms = state.monks, ages = ms.filter(function (m) { return m.dob; }).map(function (m) { return yearsSince(m.dob); });
+        var live = { 'Total': ms.length, 'Known DOBs': ages.length, 'Average Age': ages.length ? (Math.round(ages.reduce(function (a, b) { return a + b; }, 0) / ages.length * 10) / 10).toFixed(1) : '' };
+        for (var bb = 20; bb < 100; bb += 10) live[bb + '–' + (bb + 9)] = ages.filter(function (a) { return a >= bb && a < bb + 10; }).length;
+        var ci = -1; body.forEach(function (r, i) { if (r[0] === 'Conception Abbey') ci = i; });
+        if (ci >= 0 && state.monks.length) {
+          var mine = body.splice(ci, 1)[0].map(function (v, i) { return live.hasOwnProperty(head[i]) ? String(live[head[i]]) : v; });
+          body.unshift(mine);
+        } else if (ci > 0) { body.unshift(body.splice(ci, 1)[0]); }
+        foot.push('Conception Abbey is worked out live from the monk directory. The other communities are from the 2026 catalog.');
+      }
+      body.forEach(function (r) {
         var rest = r.slice(1).some(function (x) { return x !== ''; });
         if (!rest) { if (r[0]) foot.push(r[0]); return; }
         var noteIdx = head.indexOf('Notes'), note = noteIdx > 0 ? r[noteIdx] : '';
