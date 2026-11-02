@@ -28,6 +28,7 @@ h1{margin:0;font-size:26px;line-height:1.15;font-weight:700}
 h2{margin:0;font-size:19px;font-weight:700}
 .today{font-size:15px;color:var(--muted);text-align:right}
 .linkbtn{background:none;border:0;padding:6px 0;color:var(--accent);font-size:15px;font-weight:600}
+.homebtn{width:60px;height:60px;border-radius:16px;background:#2F6DB5;border:0;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 2px 6px rgba(47,109,181,.35)}
 .iconbtn{width:44px;height:44px;border-radius:12px;background:#fff;border:1px solid var(--border);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .head{display:flex;align-items:center;gap:12px}
 label{display:block;font-size:15px;font-weight:600;margin-bottom:6px}
@@ -605,7 +606,6 @@ form.f{display:flex;flex-direction:column;gap:14px}
   /* ---------- shared pieces ---------- */
   function header(title, eyebrow) {
     return h('div', { class: 'head' },
-      h('button', { class: 'iconbtn', 'aria-label': 'Back', onclick: back }, icon('back')),
       h('div', null, eyebrow ? h('div', { class: 'eyebrow' }, eyebrow) : null, h('h1', null, title)));
   }
   function searchBox(value, onGo, mode) {
@@ -1350,7 +1350,7 @@ form.f{display:flex;flex-direction:column;gap:14px}
       h('div', { class: 'brand' },
         h('div', { class: 'logo' }, icon('cross')),
         h('div', null, h('div', { class: 'eyebrow' }, 'CONCEPTION ABBEY'), onHome ? h('h1', null, 'Monk Directory') : h('div', { style: 'font-weight:700;font-size:18px' }, 'Monk Directory'))),
-      onHome ? null : h('button', { class: 'iconbtn', 'aria-label': 'Home', title: 'Home', onclick: function () { home(); } }, icon('house'))));
+      onHome ? null : h('button', { class: 'homebtn', 'aria-label': 'Home', title: 'Home', onclick: function () { home(); } }, icon('house', 32))));
 
     if (!configured()) {
       page.appendChild(h('div', { class: 'banner err', role: 'alert' }, 'This page is not connected to the directory yet. The link in config.js still needs to be filled in.'));
